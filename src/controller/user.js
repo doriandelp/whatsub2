@@ -72,8 +72,23 @@ export class UserController {
       // Retourne la liste d'utilisateurs
       return users;
     } catch (error) {
-      // En cas d'erreur, lance une exepction pour la gérer à un niveau supérieur
-      throw error;
+      // Log de l'erreur pour un diagnostic interne
+      console.error("Database operation failed:", error);
+
+      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
+      let errorMessage = "An unexpected error occurred. Please try again.";
+
+      if (error.code === "ER_DUP_ENTRY") {
+        errorMessage =
+          "Duplicate entry. The email or username is already in use.";
+      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
+        errorMessage = "Invalid reference. Please check your input data.";
+      } else if (error.message.includes("password")) {
+        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
+      }
+
+      // Renvoyer une nouvelle erreur avec le message personnalisé
+      throw new Error(errorMessage);
     }
   }
 
@@ -103,8 +118,20 @@ export class UserController {
       throw new Error("Password must contain at least one special character.");
     }
   }
-  // Cette méthode asynchrone insère un nouvel utilisateur dans la base de données.
-  // Elle prend en paramètre les données de l'utilisateur, dont certaines ont des valeurs par défaut si non spécifiées.
+
+  async validateEmail(email) {
+    // Vérifier que l'email contient un arrobase
+    if (!email.includes("@")) {
+      throw new Error("Email must contain an @ symbol.");
+    }
+
+    // Vérifier que l'email contient un point après l'arrobase
+    const parts = email.split("@");
+    if (parts[1].indexOf(".") === -1) {
+      throw new Error("Email must contain a dot (.) after the @ symbol.");
+    }
+  }
+
   async insertUser(
     nom = "",
     prenom = "",
@@ -112,7 +139,7 @@ export class UserController {
     salaire = 0,
     mail,
     motdepasse,
-    ismailverif = 0
+    ismailverif
   ) {
     try {
       // Vérifier si un utilisateur avec le même email existe déjà
@@ -125,16 +152,27 @@ export class UserController {
         throw new Error("An account with this email already exists.");
       }
 
-      // Hashage du mot de passe avec bcrypt avant insertion dans la base de données pour des raisons de sécurité.
+      // Valider l'email
+      await this.validateEmail(mail);
+
+      // Valider le mot de passe
+      await this.validatePassword(motdepasse);
+
+      // Hashage du mot de passe avec bcrypt
       const hashedPassword = await bcrypt.hash(motdepasse, 10);
 
-      // Définition de la requête SQL pour insérer un nouvel utilisateur. Les placeholders `?` sont utilisés pour éviter les injections SQL.
+      // Remplacer null par false pour ismailverif
+      if (ismailverif === null) {
+        throw new Error("Il est impossible que ismailverif soit null.");
+      }
+
+      // Définition de la requête SQL pour insérer un nouvel utilisateur
       const query = `
       INSERT INTO utilisateur (nom, prenom, telephone, salaire, mail, motdepasse, ismailverif)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
-      // Appel de `executeQuery` pour exécuter la requête d'insertion avec les valeurs fournies.
+      // Exécution de la requête
       await this.executeQuery(query, [
         nom,
         prenom,
@@ -142,11 +180,26 @@ export class UserController {
         salaire,
         mail,
         hashedPassword,
-        ismailverif,
+        ismailverif, // Convertir la valeur booléenne en 0 ou 1
       ]);
     } catch (error) {
-      // En cas d'erreur lors de l'insertion, l'erreur est capturée et relancée pour être gérée à un niveau supérieur.
-      throw error;
+      // Log de l'erreur pour un diagnostic interne
+      console.error("Database operation failed:", error);
+
+      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
+      let errorMessage = "An unexpected error occurred. Please try again.";
+
+      if (error.code === "ER_DUP_ENTRY") {
+        errorMessage =
+          "Duplicate entry. The email or username is already in use.";
+      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
+        errorMessage = "Invalid reference. Please check your input data.";
+      } else if (error.message.includes("password")) {
+        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
+      }
+
+      // Renvoyer une nouvelle erreur avec le message personnalisé
+      throw new Error(errorMessage);
     }
   }
 
@@ -154,60 +207,123 @@ export class UserController {
     try {
       const query = `DELETE FROM utilisateur WHERE mail = '${mail}'`;
 
+      await this.validateEmail(mail);
+
       await this.executeQuery(query);
     } catch (error) {
-      // En cas d'erreur, lance une exception pour la gérer à un niveau supérieur
-      throw error;
+      // Log de l'erreur pour un diagnostic interne
+      console.error("Database operation failed:", error);
+
+      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
+      let errorMessage = "An unexpected error occurred. Please try again.";
+
+      if (error.code === "ER_DUP_ENTRY") {
+        errorMessage =
+          "Duplicate entry. The email or username is already in use.";
+      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
+        errorMessage = "Invalid reference. Please check your input data.";
+      } else if (error.message.includes("password")) {
+        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
+      }
+
+      // Renvoyer une nouvelle erreur avec le message personnalisé
+      throw new Error(errorMessage);
     }
   }
 
-  // Méthode asynchrone pour mettre à jouer les informations d'un utilisateur dans la base de données.
+  // Méthode asynchrone pour mettre à jour les informations d'un utilisateur dans la base de données.
   async updateUser(
-    new_nom,
-    new_prenom,
-    new_telephone,
-    new_salaire,
+    current_mail, // Utilisez 'current_nom' pour identifier l'utilisateur actuel
+    new_nom = "",
+    new_prenom = "",
+    new_telephone = "",
+    new_salaire = 0,
     new_mail,
     new_motdepasse,
-    new_ismailverif // les enregistrements de l'utilisateur en fonction du nom de l'entreprise
+    new_ismailverif = 0
   ) {
     try {
-      // Définition de la requête SQL pour mettre à jour la base de données.
-      const query = `
-    UPDATE utilisateur 
-    SET 
-      nom = '${new_nom}', 
-      prenom = '${new_prenom}', 
-      telephone = '${new_telephone}', 
-      salaire = '${new_salaire}', 
-      mail = '${new_mail}',
-      motdepasse = '${new_motdepasse}', 
-      ismailverif = '${new_ismailverif}'
-    WHERE nom = '${new_nom}'`;
+      if (!new_mail || !new_motdepasse) {
+        throw new Error("Email and password are required");
+      }
 
-      // Exécution de la requête SQL de mise à jour.
-      console.log(query); // Affichage de la requête dans la console à des fins de débogage
-      await this.executeQuery(query);
+      // Validationde l'email
+      await this.validateEmail(new_mail);
+
+      // Validation du mot de passe
+      await this.validatePassword(new_motdepasse);
+
+      const hashedPassword = await bcrypt.hash(new_motdepasse, 10);
+
+      const query = `
+      UPDATE utilisateur 
+      SET 
+        nom = ?,
+        prenom = ?,
+        telephone = ?,
+        salaire = ?,
+        mail = ?,
+        motdepasse = ?,
+        ismailverif = ?
+      WHERE mail = ?
+    `;
+
+      await this.executeQuery(query, [
+        new_nom, // Utiliser new_nom si fourni, sinon conserver l'ancien
+        new_prenom,
+        new_telephone,
+        new_salaire,
+        new_mail,
+        hashedPassword,
+        new_ismailverif,
+        current_mail, // Assurez-vous de mettre à jour l'utilisateur correct
+      ]);
     } catch (error) {
-      // En cas d'erreur, lance une exception pour la gérer à un niveau supérieur
-      throw error;
+      console.error("Database operation failed:", error);
+      throw error; // Relancer l'erreur pour un traitement ultérieur
     }
   }
-
   // Méthode asynchrone pour récupérer un utilisateur en fonction du nom de l'entreprise.
-  async getUserByNom(nom) {
+  async getUserByMail(mail) {
     try {
       // Construction de la requête SQL pour sélectionneur tout les champs de l'utilisateur ayant le nom de l'entreprise spécifié.
-      const query = `SELECT * FROM utilisateur WHERE nom = '${nom}'`;
-
+      const query = `SELECT *, ismailverif = 1 AS ismailverif FROM utilisateur WHERE mail = '${mail}'`;
       // Exécution de la requête SQL et attente des résultats.
-      let result = await this.executeQuery(query);
+      let results = await this.executeQuery(query);
+
+      await this.validateEmail(mail);
+
+      // Convertir les résultats en utilisant une boucle forEach
+      results.forEach((result) => {
+        // Si la valeur de ismailverif est null, la convertir en false
+        if (result.ismailverif === null) {
+          result.ismailverif = false;
+        } else {
+          // Sinon, convertir en booléen
+          result.ismailverif = result.ismailverif === 1 ? true : false;
+        }
+      });
 
       // Retour des résultats de la requête
-      return result;
+      return results;
     } catch (error) {
-      // En cas d'erreur, lance une exception pour gérer l'erreur à un niveau supérieur
-      throw error;
+      // Log de l'erreur pour un diagnostic interne
+      console.error("Database operation failed:", error);
+
+      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
+      let errorMessage = "An unexpected error occurred. Please try again.";
+
+      if (error.code === "ER_DUP_ENTRY") {
+        errorMessage =
+          "Duplicate entry. The email or username is already in use.";
+      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
+        errorMessage = "Invalid reference. Please check your input data.";
+      } else if (error.message.includes("password")) {
+        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
+      }
+
+      // Renvoyer une nouvelle erreur avec le message personnalisé
+      throw new Error(errorMessage);
     }
   }
 }

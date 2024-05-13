@@ -1,5 +1,5 @@
 // Import du contrôleur qui gère la logique métier de l'application
-import { controller } from "../controller/user.js";
+import { controller } from "../controller/abonnement.js";
 
 // Import des modules Express et bodyParser pour la gestion des routes et du corps des requêtes.
 import express from "express";
@@ -20,11 +20,11 @@ router.use(bodyParser.json());
 
 */
 
-// Route pour récupérer tous les utilisateurs.
-router.get("/get_all_users", async (req, res) => {
+// Route pour récupérer tous les abonnements.
+router.get("/get_all_abonnements", async (req, res) => {
   try {
     // Appel de la méthode du contrôleur pour récupérer tout les utilisateurs
-    const results = await controller.getAllUsers();
+    const results = await controller.getAllAbonnement();
     res.json(results);
   } catch (error) {
     // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client.
@@ -34,21 +34,30 @@ router.get("/get_all_users", async (req, res) => {
 });
 
 // Route pour créer un nouvel utilisateur.
-router.post("/create_user", async (req, res) => {
+router.post("/create_abonnement", async (req, res) => {
   try {
     // Extraction des donnés du corps de la requête.
-    const { nom, prenom, telephone, salaire, mail, motdepasse, ismailverif } =
-      req.body;
+    const {
+      nom_abonnement,
+      nom_fournisseur,
+      montant,
+      frequence_prelevement,
+      date_echeance,
+      date_fin_engagement,
+      IsEngagement,
+      id_categorie,
+    } = req.body;
 
     // Appel de la méthode du contrôleur pour insérer un nouvel utilisateur.
-    await controller.insertUser(
-      nom,
-      prenom,
-      telephone,
-      salaire,
-      mail,
-      motdepasse,
-      ismailverif
+    await controller.insertAbonnement(
+      nom_abonnement,
+      nom_fournisseur,
+      montant,
+      frequence_prelevement,
+      date_echeance,
+      date_fin_engagement,
+      IsEngagement,
+      id_categorie
     );
 
     // Réponse réussie si tout se passe bien.
@@ -60,24 +69,17 @@ router.post("/create_user", async (req, res) => {
   }
 });
 
-/*
-Ces routes définissent des points d'API pour récupérer tout les utilisateurs
-('/get_all_users') et créer un nouvel utilisaateur ('/create_user').
-Les méthodes du contrôleur associées sont appelées pour traiter ces requêtes et 
-des réponses appropriées sont renvoyées au client en cas de succès d'erreur
-*/
-
-// Route pour supprimer un utilisateur
-router.delete("/delete_user", async (req, res) => {
+// Route pour supprimer tou utilisateur
+router.delete("/delete_abonnement", async (req, res) => {
   try {
     // Récupération du paramètre firm_name du corps de la requête.
-    const { mail } = req.body;
+    const { nom_abonnement } = req.body;
 
     // Appel de la méthode du contrôleur pour supprimer l'utilisateur.
-    await controller.deleteUser(mail);
+    await controller.deleteAbonnement(nom_abonnement);
 
-    // Réponse réussie si tout se passe bien.
-    res.send("Utilisateur a été supprimé avec le mail");
+    // Réponse  si tout se passe bien.
+    res.send("Un abonnement a été supprimé");
   } catch (error) {
     // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client.
     console.log("Erreur : " + error.stack);
@@ -86,57 +88,53 @@ router.delete("/delete_user", async (req, res) => {
 });
 
 // Route pour mettre à jour les informations d'un utilisateur
-router.put("/update_user", async (req, res) => {
+router.put("/update_abonnement", async (req, res) => {
   try {
     // Extraire les informations de la requête.
     const {
-      current_mail,
-      new_nom,
-      new_prenom,
-      new_telephone,
-      new_salaire,
-      new_mail,
-      new_motdepasse,
-      new_ismailverif,
+      current_nom_abonnement,
+      new_nom_abonnement,
+      new_nom_fournisseur,
+      new_montant,
+      new_frequence_prelevement,
+      new_date_echeance,
+      new_date_fin_engagement,
+      new_IsEngagement,
+      new_id_categorie,
     } = req.body;
 
-    // Vérifie si les champs obligatoires sont présents
-    if (!current_mail || !new_mail || !new_motdepasse) {
-      return res
-        .status(400)
-        .send("Nom actuel, nouveau mail et nouveau mot de passe sont requis.");
-    }
-
-    await controller.updateUser(
-      current_mail,
-      new_nom,
-      new_prenom,
-      new_telephone,
-      new_salaire,
-      new_mail,
-      new_motdepasse,
-      new_ismailverif
+    await controller.updateAbonnement(
+      current_nom_abonnement,
+      new_nom_abonnement,
+      new_nom_fournisseur,
+      new_montant,
+      new_frequence_prelevement,
+      new_date_echeance,
+      new_date_fin_engagement,
+      new_IsEngagement
     );
 
-    res.send("L'utilisateur a bien été modifié avec succès");
+    res.send("L'abonnement a bien été modifié avec succès");
   } catch (error) {
     console.log(error);
-    res.status(500).send("Erreur lors de la modification de l'utilisateur");
+    res.status(500).send("Erreur lors de la modification de l'abonnement");
   }
 });
 
 // Route pour récupérer un utilisateur en fonction du nom de l'entreprise (firm_name).
-router.get("/get_user_by_mail", async (req, res) => {
+router.get("/get_abonnement_by_nom_abonnement", async (req, res) => {
   try {
     // Récupération du paramètre firm_name de la requête.
-    const { mail } = req.body;
+    const { nom_abonnement } = req.body;
 
     // Appel de la méthode du contrôleur pour récupérer l'utilisateur par le nom de l'entreprise.
 
-    const user = await controller.getUserByMail(mail);
+    const abonnement = await controller.getAbonnementByNomAbonnement(
+      nom_abonnement
+    );
     // Réponse JSON contenant les données de l'utilisateur.
 
-    res.json(user);
+    res.json(abonnement);
   } catch (error) {
     // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client.
 
