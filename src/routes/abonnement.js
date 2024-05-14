@@ -12,18 +12,10 @@ export let router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(bodyParser.json());
 
-/*
-    Cette partie du code importe le contrôleur principal ('controller') qui gère la logique métier de l'application.
-    Ensuite, elle utilise le module Express pour créer un routeur ('router'). De plus, le module 'body-parser'
-    est configuré comme un middleware pour analyser le corps des requêtes HTTP, permettant ainsi de 
-    récupérer au format JSON ou URL encodé dans les requêtes.
-
-*/
-
 // Route pour récupérer tous les abonnements.
 router.get("/get_all_abonnements", async (req, res) => {
   try {
-    // Appel de la méthode du contrôleur pour récupérer tout les utilisateurs
+    // Appel de la méthode du contrôleur pour récupérer tout les abonnements.
     const results = await controller.getAllAbonnement();
     res.json(results);
   } catch (error) {
@@ -33,7 +25,7 @@ router.get("/get_all_abonnements", async (req, res) => {
   }
 });
 
-// Route pour créer un nouvel utilisateur.
+// Route pour créer un nouvel abonnement.
 router.post("/create_abonnement", async (req, res) => {
   try {
     // Extraction des donnés du corps de la requête.
@@ -48,7 +40,7 @@ router.post("/create_abonnement", async (req, res) => {
       id_categorie,
     } = req.body;
 
-    // Appel de la méthode du contrôleur pour insérer un nouvel utilisateur.
+    // Appel de la méthode du contrôleur pour insérer un nouvel abonnement.
     await controller.insertAbonnement(
       nom_abonnement,
       nom_fournisseur,
@@ -65,17 +57,17 @@ router.post("/create_abonnement", async (req, res) => {
   } catch (error) {
     // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client
     console.error("Erreur : " + error.stack);
-    res.status(500).send("Failed to insert user");
+    res.status(500).send("Failed to insert subscription");
   }
 });
 
-// Route pour supprimer tou utilisateur
+// Route pour supprimer les abonnements.
 router.delete("/delete_abonnement", async (req, res) => {
   try {
     // Récupération du paramètre firm_name du corps de la requête.
     const { nom_abonnement } = req.body;
 
-    // Appel de la méthode du contrôleur pour supprimer l'utilisateur.
+    // Appel de la méthode du contrôleur pour supprimer l'abonnement par nom_abonnement.
     await controller.deleteAbonnement(nom_abonnement);
 
     // Réponse  si tout se passe bien.
@@ -83,11 +75,11 @@ router.delete("/delete_abonnement", async (req, res) => {
   } catch (error) {
     // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client.
     console.log("Erreur : " + error.stack);
-    res.status(500).send("Erreur lors de la suppression de l'utilisateur");
+    res.status(500).send("Erreur lors de la suppression de l'abonnement");
   }
 });
 
-// Route pour mettre à jour les informations d'un utilisateur
+// Route pour mettre à jour les informations d'un abonnement
 router.put("/update_abonnement", async (req, res) => {
   try {
     // Extraire les informations de la requête.
@@ -121,18 +113,18 @@ router.put("/update_abonnement", async (req, res) => {
   }
 });
 
-// Route pour récupérer un utilisateur en fonction du nom de l'entreprise (firm_name).
+// Route pour récupérer un utilisateur en fonction du nom de l'abonnement (nom_abonnement).
 router.get("/get_abonnement_by_nom_abonnement", async (req, res) => {
   try {
-    // Récupération du paramètre firm_name de la requête.
+    // Récupération du paramètre nom_abonnement de la requête.
     const { nom_abonnement } = req.body;
 
-    // Appel de la méthode du contrôleur pour récupérer l'utilisateur par le nom de l'entreprise.
+    // Appel de la méthode du contrôleur pour récupérer l'abonnement par le nom de l'abonnement.
 
     const abonnement = await controller.getAbonnementByNomAbonnement(
       nom_abonnement
     );
-    // Réponse JSON contenant les données de l'utilisateur.
+    // Réponse JSON contenant les données de l'abonnement.
 
     res.json(abonnement);
   } catch (error) {
@@ -141,6 +133,6 @@ router.get("/get_abonnement_by_nom_abonnement", async (req, res) => {
     console.error("Erreur : " + error.stack);
     res
       .status(500)
-      .send("Erreur lors de la récupération des données de l'utilisateur");
+      .send("Erreur lors de la récupération des données de l'abonnement");
   }
 });

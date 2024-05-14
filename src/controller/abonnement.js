@@ -1,7 +1,6 @@
 // src/controller/user.js
 import mysql from "mysql";
 import { Abonnement } from "../model/abonnement.js";
-import bcrypt from "bcrypt";
 
 import {
   DATABASE_HOST,
@@ -49,13 +48,13 @@ export class AbonnementController {
 
   async getAllAbonnement() {
     try {
-      // Définition de la requête SQL pour sélectionner tout les enregistrements dans la table 'users'.
+      // Définition de la requête SQL pour sélectionner tout les enregistrements dans la table 'abonnement'.
       const query = "SELECT * FROM abonnement";
 
       // Exécution de la requête SQL et attente des résultats
       let results = await this.executeQuery(query);
 
-      // Mapping des résultats de la requête à des objets de la classe Users.
+      // Mapping des résultats de la requête à des objets de la classe abonnement.
       const abonnements = results.map(
         (result) =>
           new Abonnement(
@@ -70,26 +69,12 @@ export class AbonnementController {
           )
       );
 
-      // Retourne la liste d'utilisateurs
+      // Retourne la liste d'un abonnement.
       return abonnements;
     } catch (error) {
-      // Log de l'erreur pour un diagnostic interne
-      console.error("Database operation failed:", error);
-
-      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
-      let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (error.code === "ER_DUP_ENTRY") {
-        errorMessage =
-          "Duplicate entry. The email or username is already in use.";
-      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
-        errorMessage = "Invalid reference. Please check your input data.";
-      } else if (error.message.includes("password")) {
-        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
-      }
-
-      // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(errorMessage);
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération des abonnements."
+      );
     }
   }
 
@@ -152,7 +137,9 @@ export class AbonnementController {
       ]);
     } catch (error) {
       // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(error);
+      throw new Error(
+        "Erreur lors de l'insertion de l'abonnement : " + error.message
+      );
     }
   }
 
@@ -174,15 +161,13 @@ export class AbonnementController {
       await this.executeQuery(query, [nom_abonnement]);
     } catch (error) {
       console.error("Database operation failed:", error);
-      throw new Error(
-        "Erreur lors de la suppression de l'abonnement: " + error.message
-      );
+      throw new Error("Erreur lors de la suppression de l'abonnement.");
     }
   }
 
-  // Méthode asynchrone pour mettre à jour les informations d'un utilisateur dans la base de données.
+  // Méthode asynchrone pour mettre à jour les informations d'un abonnement dans la base de données.
   async updateAbonnement(
-    current_nom_abonnement, // Utilisez 'current_nom' pour identifier l'utilisateur actuel
+    current_nom_abonnement, // Utilisez 'current_nom_abonnement' pour identifier l'utilisateur actuel
     new_nom_abonnement,
     new_nom_fournisseur,
     new_montant,
@@ -217,7 +202,7 @@ export class AbonnementController {
       `;
 
       await this.executeQuery(query, [
-        new_nom_abonnement || current_nom_abonnement, // Utiliser new_nom si fourni, sinon conserver l'ancien
+        new_nom_abonnement || current_nom_abonnement, // Utiliser new_nom_abonnement si fourni, sinon conserver l'ancien
         new_nom_fournisseur,
         new_montant,
         new_frequence_prelevement,
@@ -228,21 +213,20 @@ export class AbonnementController {
         current_nom_abonnement, // Assurez-vous de mettre à jour l'utilisateur correct
       ]);
     } catch (error) {
-      console.error("Database operation failed:", error);
-      throw error; // Relancer l'erreur pour un traitement ultérieur
+      throw new Error("Erreur lors de la mise à jour de l'abonnement.");
     }
   }
 
   async getAbonnementByNomAbonnement(nom_abonnement) {
     try {
-      // Construction de la requête SQL pour sélectionneur tout les champs de l'utilisateur ayant le nom de l'entreprise spécifié.
+      // Construction de la requête SQL pour sélectionneur tout les champs de la categorie ayant le nom de l'abonnement spécifié.
       const query = `SELECT *, IsEngagement = 1 AS IsEngagement FROM abonnement WHERE nom_abonnement = '${nom_abonnement}'`;
       // Exécution de la requête SQL et attente des résultats.
       let results = await this.executeQuery(query);
 
-      // Convertir les résultats en utilisant une boucle forEach
+      // Convertir les résultats en abonnement une boucle forEach
       results.forEach((result) => {
-        // Si la valeur de ismailverif est null, la convertir en false
+        // Si la valeur de isEngagement est null, la convertir en false
         if (result.IsEngagement === null) {
           result.IsEngagement = false;
         } else {
@@ -252,23 +236,9 @@ export class AbonnementController {
       });
       return results;
     } catch (error) {
-      // Log de l'erreur pour un diagnostic interne
-      console.error("Database operation failed:", error);
-
-      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
-      let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (error.code === "ER_DUP_ENTRY") {
-        errorMessage =
-          "Duplicate entry. The email or username is already in use.";
-      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
-        errorMessage = "Invalid reference. Please check your input data.";
-      } else if (error.message.includes("password")) {
-        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
-      }
-
-      // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(errorMessage);
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération de l'abonnement par son nom."
+      );
     }
   }
 }

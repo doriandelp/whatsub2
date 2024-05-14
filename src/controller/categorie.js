@@ -1,7 +1,6 @@
 // src/controller/user.js
 import mysql from "mysql";
 import { Categorie } from "../model/categorie.js";
-import bcrypt from "bcrypt";
 
 import {
   DATABASE_HOST,
@@ -49,51 +48,37 @@ export class CategorieController {
 
   async getAllCategorie() {
     try {
-      // Définition de la requête SQL pour sélectionner tout les enregistrements dans la table 'users'.
+      // Définition de la requête SQL pour sélectionner tout les enregistrements dans la table 'categorie'.
       const query = "SELECT * FROM categorie";
 
       // Exécution de la requête SQL et attente des résultats
       let results = await this.executeQuery(query);
 
-      // Mapping des résultats de la requête à des objets de la classe Users.
+      // Mapping des résultats de la requête à des objets de la classe categorie.
       const categories = results.map(
         (result) => new Categorie(result.nom, result.couleur)
       );
 
-      // Retourne la liste d'utilisateurs
+      // Retourne la liste des categories
       return categories;
     } catch (error) {
-      // Log de l'erreur pour un diagnostic interne
-      console.error("Database operation failed:", error);
-
-      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
-      let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (error.code === "ER_DUP_ENTRY") {
-        errorMessage =
-          "Duplicate entry. The email or username is already in use.";
-      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
-        errorMessage = "Invalid reference. Please check your input data.";
-      } else if (error.message.includes("password")) {
-        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
-      }
-
-      // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(errorMessage);
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération des categories."
+      );
     }
   }
 
   async insertCategorie(nom, couleur) {
     try {
       const existingCategorie = await this.executeQuery(
-        "SELECT 1 FROM categorie WHERE couleur = ? LIMIT 1",
-        [couleur]
+        "SELECT 1 FROM categorie WHERE nom = ? LIMIT 1",
+        [nom]
       );
 
       if (existingCategorie.length > 0) {
-        throw new Error("la couleur avec ce nom existe déjà.");
+        throw new Error("la nom existe déjà.");
       }
-      // Définition de la requête SQL pour insérer un nouvel abonnement
+      // Définition de la requête SQL pour insérer une nouvelle categorie
       const query = `
       INSERT INTO categorie (
         nom,
@@ -106,13 +91,15 @@ export class CategorieController {
       await this.executeQuery(query, [nom, couleur]);
     } catch (error) {
       // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(error);
+      throw new Error(
+        "Erreur lors de l'insertion de la categorie : " + error.message
+      );
     }
   }
 
   async deleteCategorie(nom) {
     try {
-      // Vérifier d'abord si l'abonnement existe
+      // Vérifier d'abord si la categorie existe
       const existingCategorie = await this.executeQuery(
         "SELECT 1 FROM categorie WHERE nom = ?",
         [nom]
@@ -134,27 +121,70 @@ export class CategorieController {
     }
   }
 
-  // Méthode asynchrone pour mettre à jouer les informations d'un utilisateur dans la base de données.
-  async updateCategorie(new_nom, new_couleur) {
+  // Méthode asynchrone pour mettre à jour les informations d'une categorie
+  async updateCategorie(current_nom, nom, couleur) {
     try {
-      // Définition de la requête SQL pour mettre à jour la base de données.
-      const query = `
-  UPDATE categorie 
-  SET 
-    nom = '${new_nom}', 
-    couleur = '${new_couleur}'
-  WHERE nom = '${new_nom}'`;
+      // Validation des entrées.
+      if (!nom && !couleur) {
+        throw new Error(
+          "Au moins un des paramètres doit être fourni (nom, couleur)."
+        );
+      }
 
-      // Exécution de la requête SQL de mise à jour.
-      console.log(query); // Affichage de la requête dans la console à des fins de débogage
-      await this.executeQuery(query);
+      // Vérifier si le nouveau nom est unique
+      if (nom) {
+        const existingCategorie = await this.executeQuery(
+          "SELECT 1 FROM categorie WHERE nom = ?",
+          [nom]
+        );
+
+        if (existingCategorie.length > 0) {
+          throw new Error("Le nom de la catégorie est déjà utilisé.");
+        }
+      }
+
+      // Initialisation des champs et valeurs mise à jour
+      let updatedFields = [];
+      let updatedValues = [];
+
+      // Mise à jour des champs et valeurs en fonction des paramètres fournis
+      if (nom) {
+        updatedFields.push("nom = ?");
+        updatedValues.push(nom);
+      }
+
+      if (couleur) {
+        updatedFields.push("couleur = ?");
+        updatedValues.push(couleur);
+      }
+
+      // Ajout de l'current_nom pour la condition WHERE
+      updatedValues.push(current_nom);
+
+      // Construction de la requête SQL
+      const query = `
+        UPDATE categorie
+        SET ${updatedFields.join(", ")}
+        WHERE nom = ?
+      `;
+
+      // Exécution de la requête de mise à jour dans la base de données
+      const result = await this.executeQuery(query, updatedValues);
+
+      // Vérification si la mise à jour a affecté des lignes
+      return result.affectedRows > 0;
     } catch (error) {
-      // En cas d'erreur, lance une exception pour la gérer à un niveau supérieur
-      throw error;
+      console.error(
+        "Une erreur est survenue lors de la mise à jour de la catégorie",
+        error
+      );
+      throw new Error(
+        "Une erreur est survenue lors de la mise à jour de la catégorie."
+      );
     }
   }
 
-  // Méthode asynchrone pour récupérer un utilisateur en fonction du nom de l'entreprise.
+  // Méthode asynchrone pour récupérer un utilisateur en fonction du nom de la categorie
   async getCategorieByNom(nom) {
     try {
       const query = `SELECT * FROM categorie WHERE nom = '${nom}'`;
@@ -166,7 +196,10 @@ export class CategorieController {
       return result;
     } catch (error) {
       // En cas d'erreur, lance une exception pour gérer l'erreur à un niveau supérieur
-      throw error;
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération de la categorie par son nom." +
+          error.message
+      );
     }
   }
 }

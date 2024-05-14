@@ -12,14 +12,6 @@ export let router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(bodyParser.json());
 
-/*
-    Cette partie du code importe le contrôleur principal ('controller') qui gère la logique métier de l'application.
-    Ensuite, elle utilise le module Express pour créer un routeur ('router'). De plus, le module 'body-parser'
-    est configuré comme un middleware pour analyser le corps des requêtes HTTP, permettant ainsi de 
-    récupérer au format JSON ou URL encodé dans les requêtes.
-
-*/
-
 // Route pour récupérer tous les utilisateurs.
 router.get("/get_all_users", async (req, res) => {
   try {
@@ -60,17 +52,10 @@ router.post("/create_user", async (req, res) => {
   }
 });
 
-/*
-Ces routes définissent des points d'API pour récupérer tout les utilisateurs
-('/get_all_users') et créer un nouvel utilisaateur ('/create_user').
-Les méthodes du contrôleur associées sont appelées pour traiter ces requêtes et 
-des réponses appropriées sont renvoyées au client en cas de succès d'erreur
-*/
-
 // Route pour supprimer un utilisateur
 router.delete("/delete_user", async (req, res) => {
   try {
-    // Récupération du paramètre firm_name du corps de la requête.
+    // Récupération du paramètre mail du corps de la requête.
     const { mail } = req.body;
 
     // Appel de la méthode du contrôleur pour supprimer l'utilisateur.
@@ -125,13 +110,13 @@ router.put("/update_user", async (req, res) => {
   }
 });
 
-// Route pour récupérer un utilisateur en fonction du nom de l'entreprise (firm_name).
+// Route pour récupérer un utilisateur en fonction du mail.
 router.get("/get_user_by_mail", async (req, res) => {
   try {
-    // Récupération du paramètre firm_name de la requête.
+    // Récupération du paramètre mail de la requête.
     const { mail } = req.body;
 
-    // Appel de la méthode du contrôleur pour récupérer l'utilisateur par le nom de l'entreprise.
+    // Appel de la méthode du contrôleur pour récupérer l'utilisateur par le mail.
 
     const user = await controller.getUserByMail(mail);
     // Réponse JSON contenant les données de l'utilisateur.

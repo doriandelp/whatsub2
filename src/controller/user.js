@@ -49,7 +49,7 @@ export class UserController {
 
   async getAllUsers() {
     try {
-      // Définition de la requête SQL pour sélectionner tout les enregistrements dans la table 'users'.
+      // Définition de la requête SQL pour sélectionner tout les enregistrements dans la table 'utilisateur'.
       const query = "SELECT * FROM utilisateur";
 
       // Exécution de la requête SQL et attente des résultats
@@ -72,23 +72,9 @@ export class UserController {
       // Retourne la liste d'utilisateurs
       return users;
     } catch (error) {
-      // Log de l'erreur pour un diagnostic interne
-      console.error("Database operation failed:", error);
-
-      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
-      let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (error.code === "ER_DUP_ENTRY") {
-        errorMessage =
-          "Duplicate entry. The email or username is already in use.";
-      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
-        errorMessage = "Invalid reference. Please check your input data.";
-      } else if (error.message.includes("password")) {
-        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
-      }
-
-      // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(errorMessage);
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération des utilisateurs."
+      );
     }
   }
 
@@ -118,6 +104,10 @@ export class UserController {
       throw new Error("Password must contain at least one special character.");
     }
   }
+  catch(error) {
+    console.error("Validation du mot de passe échouée:", error.message);
+    throw new Error("La validation du mot de passe a échoué.");
+  }
 
   async validateEmail(email) {
     // Vérifier que l'email contient un arrobase
@@ -130,6 +120,10 @@ export class UserController {
     if (parts[1].indexOf(".") === -1) {
       throw new Error("Email must contain a dot (.) after the @ symbol.");
     }
+  }
+  catch(error) {
+    console.error("Validation de l'email échouée:", error.message);
+    throw new Error("La validation de l'email a échoué.");
   }
 
   async insertUser(
@@ -183,23 +177,9 @@ export class UserController {
         ismailverif, // Convertir la valeur booléenne en 0 ou 1
       ]);
     } catch (error) {
-      // Log de l'erreur pour un diagnostic interne
-      console.error("Database operation failed:", error);
-
-      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
-      let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (error.code === "ER_DUP_ENTRY") {
-        errorMessage =
-          "Duplicate entry. The email or username is already in use.";
-      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
-        errorMessage = "Invalid reference. Please check your input data.";
-      } else if (error.message.includes("password")) {
-        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
-      }
-
-      // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(errorMessage);
+      throw new Error(
+        "Une erreur s'est produite lors de l'insertion d'un utilisateur."
+      );
     }
   }
 
@@ -211,29 +191,15 @@ export class UserController {
 
       await this.executeQuery(query);
     } catch (error) {
-      // Log de l'erreur pour un diagnostic interne
-      console.error("Database operation failed:", error);
-
-      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
-      let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (error.code === "ER_DUP_ENTRY") {
-        errorMessage =
-          "Duplicate entry. The email or username is already in use.";
-      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
-        errorMessage = "Invalid reference. Please check your input data.";
-      } else if (error.message.includes("password")) {
-        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
-      }
-
-      // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(errorMessage);
+      throw new Error(
+        "Une erreur s'est produite lors de la suppression d'un utilisateur."
+      );
     }
   }
 
   // Méthode asynchrone pour mettre à jour les informations d'un utilisateur dans la base de données.
   async updateUser(
-    current_mail, // Utilisez 'current_nom' pour identifier l'utilisateur actuel
+    current_mail, // Utilisez 'current_mail' pour identifier l'utilisateur actuel
     new_nom = "",
     new_prenom = "",
     new_telephone = "",
@@ -279,14 +245,15 @@ export class UserController {
         current_mail, // Assurez-vous de mettre à jour l'utilisateur correct
       ]);
     } catch (error) {
-      console.error("Database operation failed:", error);
-      throw error; // Relancer l'erreur pour un traitement ultérieur
+      throw new Error(
+        "Une erreur s'est produite lors de la modification d'un utilisateur."
+      );
     }
   }
-  // Méthode asynchrone pour récupérer un utilisateur en fonction du nom de l'entreprise.
+  // Méthode asynchrone pour récupérer un utilisateur en fonction du mail de ce dernier.
   async getUserByMail(mail) {
     try {
-      // Construction de la requête SQL pour sélectionneur tout les champs de l'utilisateur ayant le nom de l'entreprise spécifié.
+      // Construction de la requête SQL pour sélectionneur tout les champs de l'utilisateur ayant l'email spécifié.
       const query = `SELECT *, ismailverif = 1 AS ismailverif FROM utilisateur WHERE mail = '${mail}'`;
       // Exécution de la requête SQL et attente des résultats.
       let results = await this.executeQuery(query);
@@ -307,23 +274,9 @@ export class UserController {
       // Retour des résultats de la requête
       return results;
     } catch (error) {
-      // Log de l'erreur pour un diagnostic interne
-      console.error("Database operation failed:", error);
-
-      // Personnalisation des messages d'erreur basée sur le type ou le contenu de l'erreur
-      let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (error.code === "ER_DUP_ENTRY") {
-        errorMessage =
-          "Duplicate entry. The email or username is already in use.";
-      } else if (error.message.includes("ER_NO_REFERENCED_ROW")) {
-        errorMessage = "Invalid reference. Please check your input data.";
-      } else if (error.message.includes("password")) {
-        errorMessage = error.message; // Propager des messages d'erreur spécifiques au mot de passe
-      }
-
-      // Renvoyer une nouvelle erreur avec le message personnalisé
-      throw new Error(errorMessage);
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération d'un utilisateur par l'email."
+      );
     }
   }
 }
