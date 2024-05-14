@@ -12,14 +12,6 @@ export let router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(bodyParser.json());
 
-/*
-    Cette partie du code importe le contrôleur principal ('controller') qui gère la logique métier de l'application.
-    Ensuite, elle utilise le module Express pour créer un routeur ('router'). De plus, le module 'body-parser'
-    est configuré comme un middleware pour analyser le corps des requêtes HTTP, permettant ainsi de 
-    récupérer au format JSON ou URL encodé dans les requêtes.
-
-*/
-
 // Route pour récupérer tous les utilisateurs.
 router.get("/get_all_users", async (req, res) => {
   try {
@@ -40,13 +32,6 @@ router.post("/create_user", async (req, res) => {
     const { nom, prenom, telephone, salaire, mail, motdepasse, ismailverif } =
       req.body;
 
-    /*
-    Cette partie du code traite la route qui permet de créer un nouvel utilisateur (/create_user). 
-    Les données nécessaires pour créer l'utilisateur sont extraites du corps de la requête (req.body) à l'aide de la déstructuration.
-    Ensuite, ces données sont passées en tant qu'arguments à la méthode du contrôleur (insertUser) chargée d'insérer ces informations
-    dans la base de données. Cela permet de séparer la logique de gestion des routes de la logique métier, 
-    favorisant une meilleure organisation et facilitant la maintenance du code.
-    */
     // Appel de la méthode du contrôleur pour insérer un nouvel utilisateur.
     await controller.insertUser(
       nom,
@@ -67,17 +52,10 @@ router.post("/create_user", async (req, res) => {
   }
 });
 
-/*
-Ces routes définissent des points d'API pour récupérer tout les utilisateurs
-('/get_all_users') et créer un nouvel utilisaateur ('/create_user').
-Les méthodes du contrôleur associées sont appelées pour traiter ces requêtes et 
-des réponses appropriées sont renvoyées au client en cas de succès d'erreur
-*/
-
 // Route pour supprimer un utilisateur
 router.delete("/delete_user", async (req, res) => {
   try {
-    // Récupération du paramètre firm_name du corps de la requête.
+    // Récupération du paramètre mail du corps de la requête.
     const { mail } = req.body;
 
     // Appel de la méthode du contrôleur pour supprimer l'utilisateur.
@@ -95,9 +73,9 @@ router.delete("/delete_user", async (req, res) => {
 // Route pour mettre à jour les informations d'un utilisateur
 router.put("/update_user", async (req, res) => {
   try {
-    // Récupération des paramètres du corps de la requête.
-    const { nom } = req.body;
+    // Extraire les informations de la requête.
     const {
+      current_mail,
       new_nom,
       new_prenom,
       new_telephone,
@@ -107,9 +85,15 @@ router.put("/update_user", async (req, res) => {
       new_ismailverif,
     } = req.body;
 
-    // Appel de la méthode du contrôleur pour mettre à jour l'utilisateur.
+    // Vérifie si les champs obligatoires sont présents
+    if (!current_mail || !new_mail || !new_motdepasse) {
+      return res
+        .status(400)
+        .send("Nom actuel, nouveau mail et nouveau mot de passe sont requis.");
+    }
+
     await controller.updateUser(
-      nom,
+      current_mail,
       new_nom,
       new_prenom,
       new_telephone,
@@ -119,24 +103,22 @@ router.put("/update_user", async (req, res) => {
       new_ismailverif
     );
 
-    // Réponse réussie si tout se passe bien
     res.send("L'utilisateur a bien été modifié avec succès");
   } catch (error) {
-    // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client.
-    console.log("Recette a été modifié");
+    console.log(error);
     res.status(500).send("Erreur lors de la modification de l'utilisateur");
   }
 });
 
-// Route pour récupérer un utilisateur en fonction du nom de l'entreprise (firm_name).
-router.get("/get_user_by_nom", async (req, res) => {
+// Route pour récupérer un utilisateur en fonction du mail.
+router.get("/get_user_by_mail", async (req, res) => {
   try {
-    // Récupération du paramètre firm_name de la requête.
-    const { nom } = req.body;
+    // Récupération du paramètre mail de la requête.
+    const { mail } = req.body;
 
-    // Appel de la méthode du contrôleur pour récupérer l'utilisateur par le nom de l'entreprise.
+    // Appel de la méthode du contrôleur pour récupérer l'utilisateur par le mail.
 
-    const user = await controller.getUserByNom(nom);
+    const user = await controller.getUserByMail(mail);
     // Réponse JSON contenant les données de l'utilisateur.
 
     res.json(user);

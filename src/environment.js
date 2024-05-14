@@ -1,4 +1,3 @@
-// src/environment.js
 import "dotenv/config";
 
 export const PORT = process.env.WHATSUB_PORT;
