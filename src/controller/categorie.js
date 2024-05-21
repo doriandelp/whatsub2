@@ -112,7 +112,14 @@ export class CategorieController {
 
       // S'il existe, on procède à la suppression
       const query = "DELETE FROM categorie WHERE nom = ?";
-      await this.executeQuery(query, [nom]);
+      const result = await this.executeQuery(query, [nom]);
+
+      // Vérification si la suppression a affecté des lignes
+      if (result.affectedRows > 0) {
+        return true; // La catégorie a été supprimée avec succès
+      } else {
+        return false; // La suppression a échoué
+      }
     } catch (error) {
       console.error("Database operation failed:", error);
       throw new Error(
@@ -131,15 +138,27 @@ export class CategorieController {
         );
       }
 
-      // Vérifier si le nouveau nom est unique
+      // Vérifier si le current_nom existe
       if (nom) {
         const existingCategorie = await this.executeQuery(
+          "SELECT 1 FROM categorie WHERE nom = ?",
+          [current_nom]
+        );
+
+        if (existingCategorie.length === 0) {
+          throw new Error("Aucune catégorie avec ce nom actuel n'existe.");
+        }
+      }
+
+      // Vérifier si le nouveau nom est unique
+      if (nom) {
+        const existingNewNomCategorie = await this.executeQuery(
           "SELECT 1 FROM categorie WHERE nom = ?",
           [nom]
         );
 
-        if (existingCategorie.length > 0) {
-          throw new Error("Le nom de la catégorie est déjà utilisé.");
+        if (existingNewNomCategorie.length > 0) {
+          throw new Error("Ce nom existe deja");
         }
       }
 
@@ -190,10 +209,14 @@ export class CategorieController {
       const query = `SELECT * FROM categorie WHERE nom = '${nom}'`;
 
       // Exécution de la requête SQL et attente des résultats.
-      let result = await this.executeQuery(query);
+      let result = await this.executeQuery(query, [nom]);
 
-      // Retour des résultats de la requête
-      return result;
+      // Vérification si la catérgoie a été trouvée
+      if (result.length === 0) {
+        throw new Error("Aucune catégorie avec ce nom n'a été trouvée.");
+      }
+      // Retour la catégorie trouvée
+      return result[0];
     } catch (error) {
       // En cas d'erreur, lance une exception pour gérer l'erreur à un niveau supérieur
       throw new Error(

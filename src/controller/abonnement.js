@@ -122,7 +122,7 @@ export class AbonnementController {
         id_categorie
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+      `;
 
       // Exécution de la requête
       await this.executeQuery(query, [
@@ -132,7 +132,7 @@ export class AbonnementController {
         frequence_prelevement,
         date_echeance,
         date_fin_engagement,
-        IsEngagement,
+        IsEngagement ? "1" : "0",
         id_categorie,
       ]);
     } catch (error) {
@@ -158,7 +158,14 @@ export class AbonnementController {
 
       // S'il existe, on procède à la suppression
       const query = "DELETE FROM abonnement WHERE nom_abonnement = ?";
-      await this.executeQuery(query, [nom_abonnement]);
+      const result = await this.executeQuery(query, [nom_abonnement]);
+
+      // Vérification si la suppression a affecté des lignes
+      if (result.affectedRows > 0) {
+        return true; // La catégorie a été supprimée avec succès
+      } else {
+        return false; // La suppression a échoué
+      }
     } catch (error) {
       console.error("Database operation failed:", error);
       throw new Error("Erreur lors de la suppression de l'abonnement.");
@@ -168,73 +175,149 @@ export class AbonnementController {
   // Méthode asynchrone pour mettre à jour les informations d'un abonnement dans la base de données.
   async updateAbonnement(
     current_nom_abonnement, // Utilisez 'current_nom_abonnement' pour identifier l'utilisateur actuel
-    new_nom_abonnement,
-    new_nom_fournisseur,
-    new_montant,
-    new_frequence_prelevement,
-    new_date_echeance,
-    new_date_fin_engagement,
-    new_IsEngagement,
-    new_id_categorie
+    nom_abonnement,
+    nom_fournisseur,
+    montant,
+    frequence_prelevement,
+    date_echeance,
+    date_fin_engagement,
+    IsEngagement,
+    id_categorie
   ) {
     try {
-      const dateEcheanceObj = new Date(new_date_echeance);
-      const dateFinEngagementObj = new Date(new_date_fin_engagement);
-
-      if (dateEcheanceObj >= dateFinEngagementObj) {
-        throw new Error(
-          "La date d'échéance doit être antérieure à la date de fin d'engagement."
-        );
+      // Validation des entrées.
+      if (
+        !nom_abonnement &&
+        !nom_fournisseur &&
+        !montant &&
+        !frequence_prelevement &&
+        !date_echeance &&
+        !date_fin_engagement &&
+        !IsEngagement &&
+        !id_categorie
+      ) {
+        throw new Error("Au moins un des paramètres doit être fourni.");
       }
 
-      const query = `
-        UPDATE abonnement 
-        SET 
-          nom_abonnement = ?,
-          nom_fournisseur = ?,
-          montant = ?,
-          frequence_prelevement = ?,
-          date_echeance = ?,
-          date_fin_engagement = ?,
-          isEngagement = ?,
-          id_categorie = ?
-        WHERE nom_abonnement = ?
-      `;
+      // Vérifier si le current_nom existe
+      const existingAbonnement = await this.executeQuery(
+        "SELECT 1 FROM abonnement WHERE nom_abonnement = ?",
+        [current_nom_abonnement]
+      );
 
-      await this.executeQuery(query, [
-        new_nom_abonnement || current_nom_abonnement, // Utiliser new_nom_abonnement si fourni, sinon conserver l'ancien
-        new_nom_fournisseur,
-        new_montant,
-        new_frequence_prelevement,
-        new_date_echeance,
-        new_date_fin_engagement,
-        new_IsEngagement,
-        new_id_categorie,
-        current_nom_abonnement, // Assurez-vous de mettre à jour l'utilisateur correct
-      ]);
+      if (existingAbonnement.length === 0) {
+        throw new Error("Aucune abonnement avec ce nom actuel n'existe pas.");
+      }
+
+      // Vérifier si le nouveau nom est unique
+      const existingNewNomAbonnement = await this.executeQuery(
+        "SELECT 1 FROM abonnement WHERE nom_abonnement = ?",
+        [nom_abonnement]
+      );
+
+      if (existingNewNomAbonnement.length > 0) {
+        throw new Error("Ce nom abonnement existe deja");
+      }
+
+      if (date_echeance && date_fin_engagement) {
+        const dateEcheanceObj = new Date(date_echeance);
+        const dateFinEngagementObj = new Date(date_fin_engagement);
+
+        if (dateEcheanceObj >= dateFinEngagementObj) {
+          throw new Error(
+            "La date d'échéance doit être antérieure à la date de fin d'engagement."
+          );
+        }
+      }
+
+      // Initialisation des champs et valeurs mise à jour
+      let updatedFields = [];
+      let updatedValues = [];
+
+      // Mise à jour des champs et valeurs en fonction des paramètres fournis
+      if (nom_abonnement) {
+        updatedFields.push("nom_abonnement = ?");
+        updatedValues.push(nom_abonnement);
+      }
+
+      if (nom_fournisseur) {
+        updatedFields.push("nom_fournisseur = ?");
+        updatedValues.push(nom_fournisseur);
+      }
+
+      // Mise à jour des champs et valeurs en fonction des paramètres fournis
+      if (montant) {
+        updatedFields.push("montant = ?");
+        updatedValues.push(montant);
+      }
+
+      if (frequence_prelevement) {
+        updatedFields.push("frequence_prelevement = ?");
+        updatedValues.push(frequence_prelevement);
+      }
+
+      // Mise à jour des champs et valeurs en fonction des paramètres fournis
+      if (date_echeance) {
+        updatedFields.push("date_echeance = ?");
+        updatedValues.push(date_echeance);
+      }
+
+      if (date_fin_engagement) {
+        updatedFields.push("date_fin_engagement = ?");
+        updatedValues.push(date_fin_engagement);
+      }
+
+      // Mise à jour des champs et valeurs en fonction des paramètres fournis
+      if (typeof IsEngagement === "boolean") {
+        updatedFields.push("IsEngagement = ?");
+        updatedValues.push(IsEngagement);
+      }
+
+      if (id_categorie) {
+        updatedFields.push("id_categorie = ?");
+        updatedValues.push(id_categorie);
+      }
+
+      // Ajout de l'current_nom pour la condition WHERE
+      updatedValues.push(current_nom_abonnement);
+
+      // Construction de la requête SQL
+      const query = `
+         UPDATE abonnement
+         SET ${updatedFields.join(", ")}
+         WHERE nom_abonnement = ?
+       `;
+
+      // Exécution de la requête de mise à jour dans la base de données
+      const result = await this.executeQuery(query, updatedValues);
+
+      // Vérification si la mise à jour a affecté des lignes
+      return result.affectedRows > 0;
     } catch (error) {
-      throw new Error("Erreur lors de la mise à jour de l'abonnement.");
+      throw new Error(
+        "Erreur lors de la mise à jour de l'abonnement : " + error.message
+      );
     }
   }
 
   async getAbonnementByNomAbonnement(nom_abonnement) {
     try {
       // Construction de la requête SQL pour sélectionneur tout les champs de la categorie ayant le nom de l'abonnement spécifié.
-      const query = `SELECT *, IsEngagement = 1 AS IsEngagement FROM abonnement WHERE nom_abonnement = '${nom_abonnement}'`;
+      const query =
+        "SELECT *, IsEngagement FROM abonnement WHERE nom_abonnement = ?";
       // Exécution de la requête SQL et attente des résultats.
-      let results = await this.executeQuery(query);
+      let results = await this.executeQuery(query, [nom_abonnement]);
+
+      // Vérification si l'abonnement a été trouvé
+      if (results.length === 0) {
+        throw new Error("Aucun abonnement avec ce nom n'a été trouvé.");
+      }
 
       // Convertir les résultats en abonnement une boucle forEach
       results.forEach((result) => {
-        // Si la valeur de isEngagement est null, la convertir en false
-        if (result.IsEngagement === null) {
-          result.IsEngagement = false;
-        } else {
-          // Sinon, convertir en booléen
-          result.IsEngagement = result.IsEngagement === 1 ? true : false;
-        }
+        result.IsEngagement = result.IsEngagement === 1 ? true : false;
       });
-      return results;
+      return results[0]; // Retourner un seul abonnement
     } catch (error) {
       throw new Error(
         "Une erreur s'est produite lors de la récupération de l'abonnement par son nom."

@@ -32,42 +32,39 @@ router.post("/create_categorie", async (req, res) => {
     const { nom, couleur } = req.body;
 
     // Vérification des types des données.
-    if (typeof nom != "string" || typeof couleur != "string") {
+    if (typeof nom !== "string" || typeof couleur !== "string") {
       res.sendStatus(400); // Bad Request
       return;
     }
 
-    // Vérification que le nom est fourni
-    if (!nom) {
+    // Vérification que tous les champs requis sont fournis et valides
+    if (!nom || typeof nom !== "string") {
       return res.status(400).json({
         success: false,
-        message: "Le nom de la catégorie est requis pour la suppression.",
+        message:
+          "Le nom de la catégorie est requis et doit être une chaîne de caractères.",
       });
     }
 
-    // Vérification que la couleur est fourni
-    if (!couleur) {
+    if (!couleur || typeof couleur !== "string") {
       return res.status(400).json({
         success: false,
-        message: "La couleur de la catégorie est requise pour la suppression.",
+        message:
+          "La couleur de la catégorie est requis et doit être une chaîne de caractères.",
       });
     }
 
     // Appel de la méthode du contrôleur pour insérer un nouvelle categorie.
     const result = await controller.insertCategorie(nom, couleur);
 
-    // Vérifier si la suppression a réussi
-    if (result) {
-      res.sendStatus(200); // OK
-    } else {
-      res.sendStatus(404); // Not Found
-    }
     // Réponse réussie si tout se passe bien.
-    res.sendStatus(200);
+    res
+      .status(200)
+      .json({ success: true, message: "Categorie créé avec succès." });
   } catch (error) {
     // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client
     console.error("Erreur : " + error.stack);
-    res.status(500).send("Failed to insert categorie");
+    return res.status(500).send("Erreur lors de l'insertion de la catégorie.");
   }
 });
 
@@ -78,7 +75,7 @@ router.delete("/delete_categorie", async (req, res) => {
     const { nom } = req.body;
 
     // Vérification des types des données.
-    if (typeof nom != "string" || typeof couleur != "string") {
+    if (typeof nom != "string") {
       res.sendStatus(400); // Bad Request
       return;
     }
@@ -91,26 +88,19 @@ router.delete("/delete_categorie", async (req, res) => {
       });
     }
 
-    // Vérification que le nom est fourni
-    if (!couleur) {
-      return res.status(400).json({
-        success: false,
-        message: "La couleur de la catégorie est requis pour la suppression.",
-      });
-    }
-
     // Appel de la méthode du contrôleur pour supprimer la categorie.
     const result = await controller.deleteCategorie(nom);
 
     // Vérifier si la suppression a réussi
     if (result) {
-      res.sendStatus(200); // OK
+      return res
+        .status(200)
+        .json({ success: true, message: "Categorie supprimé avec succès." });
     } else {
-      res.sendStatus(404); // Not Found
+      return res
+        .status(404)
+        .json({ success: false, message: "Categorie non trouvé." });
     }
-
-    // Réponse  si tout se passe bien.
-    res.send("La catégorie a bien été supprimé");
   } catch (error) {
     // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client.
     console.log("Erreur : " + error.stack);
@@ -214,18 +204,6 @@ router.get("/get_categorie_by_nom", async (req, res) => {
 
     const categorie = await controller.getCategorieByNom(nom);
 
-    // Vérification si la catégorie a été trouvée
-    if (categorie) {
-      res.status(200).json({
-        success: true,
-        data: categorie,
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        message: "La catégorie n'a pas été trouvée.",
-      });
-    }
     res.json(categorie);
   } catch (error) {
     console.error("Erreur : " + error.stack);
