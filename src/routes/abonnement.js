@@ -1,8 +1,9 @@
+import express from "express";
+
 // Import du contrôleur qui gère la logique métier de l'application
 import { controller } from "../controller/abonnement.js";
 
 // Import des modules Express et bodyParser pour la gestion des routes et du corps des requêtes.
-import express from "express";
 import bodyParser from "body-parser";
 
 // Création d'un routeur Express
@@ -25,10 +26,53 @@ router.get("/get_all_abonnements", async (req, res) => {
   }
 });
 
-// Route pour créer un nouvel abonnement.
+router.get("/total_amount", async (req, res) => {
+  try {
+    const totalAmount = await controller.getTotalAmount();
+    res.json({ success: true, total_montant: totalAmount });
+  } catch (error) {
+    console.error("Erreur : " + error.stack);
+    res.status(500).send("Erreur lors de la récupération du montant total.");
+  }
+});
+
+router.get("/total_monthly_amount", async (req, res) => {
+  try {
+    const totalMonthlyAmount = await controller.getTotalMonthlyAmount();
+    res.json({ success: true, total_montant: totalMonthlyAmount });
+  } catch (error) {
+    console.error("Erreur : " + error.stack);
+    res
+      .status(500)
+      .send("Erreur lors de la récupération du montant total mensuel.");
+  }
+});
+router.get("/total_annual_amount", async (req, res) => {
+  try {
+    const totalAnnualAmount = await controller.getTotalAnnualAmount();
+    res.json({ success: true, total_montant: totalAnnualAmount });
+  } catch (error) {
+    console.error("Erreur : " + error.stack);
+    res
+      .status(500)
+      .send("Erreur lors de la récupération du montant total annuel.");
+  }
+});
+
+router.get("/total_weekly_amount", async (req, res) => {
+  try {
+    const totalWeeklyAmount = await controller.getTotalWeeklyAmount();
+    res.json({ success: true, total_montant: totalWeeklyAmount });
+  } catch (error) {
+    console.error("Erreur : " + error.stack);
+    res
+      .status(500)
+      .send("Erreur lors de la récupération du montant total hebdomadaire.");
+  }
+});
+
 router.post("/create_abonnement", async (req, res) => {
   try {
-    // Extraction des donnés du corps de la requête.
     const {
       nom_abonnement,
       nom_fournisseur,
@@ -40,7 +84,7 @@ router.post("/create_abonnement", async (req, res) => {
       id_categorie,
     } = req.body;
 
-    // Vérification que tous les champs requis sont fournis et valides
+    // Vérification des champs requis
     if (!nom_abonnement || typeof nom_abonnement !== "string") {
       return res.status(400).json({
         success: false,
@@ -57,18 +101,23 @@ router.post("/create_abonnement", async (req, res) => {
       });
     }
 
-    if (typeof montant !== "number") {
+    if (!montant || typeof montant !== "number") {
       return res.status(400).json({
         success: false,
         message: "Le montant est requis et doit être un nombre.",
       });
     }
 
-    if (typeof frequence_prelevement !== "number") {
+    const validFrequences = ["semaine", "mois", "annee"];
+    if (
+      !frequence_prelevement ||
+      typeof frequence_prelevement !== "string" ||
+      !validFrequences.includes(frequence_prelevement)
+    ) {
       return res.status(400).json({
         success: false,
         message:
-          "La fréquence de prélèvement est requise et doit être un nombre.",
+          "La fréquence de prélèvement est requise, doit être une chaîne de caractères et doit être 'semaine', 'mois' ou 'annee'.",
       });
     }
 
@@ -79,48 +128,63 @@ router.post("/create_abonnement", async (req, res) => {
       });
     }
 
-    if (
-      !date_fin_engagement ||
-      isNaN(new Date(date_fin_engagement).getTime())
-    ) {
+    // Ajout de la vérification pour IsEngagement
+    if (IsEngagement !== undefined && typeof IsEngagement !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "L'engagement doit être un booléen.",
+      });
+    }
+
+    // Ajout de la condition pour vérifier que date_fin_engagement est requis lorsque IsEngagement est true
+    if (IsEngagement) {
+      if (
+        !date_fin_engagement ||
+        isNaN(new Date(date_fin_engagement).getTime())
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "La date de fin d'engagement est requise et doit être une date valide lorsque l'engagement est activé.",
+        });
+      }
+    }
+
+    // Ajout de la condition pour vérifier que date_fin_engagement ne doit pas être fourni lorsque IsEngagement est false
+    if (!IsEngagement && date_fin_engagement) {
       return res.status(400).json({
         success: false,
         message:
-          "La date de fin d'engagement est requise et doit être une date valide.",
+          "La date de fin d'engagement ne doit pas être fournie lorsque l'engagement est désactivé.",
       });
     }
 
-    if (typeof IsEngagement !== "boolean") {
-      return res.status(400).json({
-        success: false,
-        message: "L'engagement est requis et doit être un booléen.",
-      });
-    }
-
-    if (typeof id_categorie !== "number") {
+    if (!id_categorie || typeof id_categorie !== "number") {
       return res.status(400).json({
         success: false,
         message: "L'ID de catégorie est requis et doit être un nombre.",
       });
     }
 
-    // Appel de la méthode du contrôleur pour insérer un nouvel abonnement.
     await controller.insertAbonnement(
       nom_abonnement,
       nom_fournisseur,
       montant,
       frequence_prelevement,
       new Date(date_echeance),
-      new Date(date_fin_engagement),
+      IsEngagement
+        ? date_fin_engagement
+          ? new Date(date_fin_engagement)
+          : null
+        : undefined, // Transformation conditionnelle des dates
       IsEngagement,
       id_categorie
     );
-    // Réponse réussie si tout se passe bien.
+
     res
       .status(200)
       .json({ success: true, message: "Abonnement créé avec succès." });
   } catch (error) {
-    // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client
     console.error("Erreur : " + error.stack);
     res.status(500).json({
       success: false,
@@ -135,17 +199,12 @@ router.delete("/delete_abonnement", async (req, res) => {
     // Récupération du paramètre firm_name du corps de la requête.
     const { nom_abonnement } = req.body;
 
-    // Vérification des types des données.
-    if (typeof nom_abonnement != "string") {
-      res.sendStatus(400); // Bad Request
-      return;
-    }
-
-    // Vérification que le nom est fourni
-    if (!nom_abonnement) {
+    // Vérification que le nom de l'abonnement est fourni et est une chaîne de caractères
+    if (!nom_abonnement || typeof nom_abonnement !== "string") {
       return res.status(400).json({
         success: false,
-        message: "Le nom de l'abonnement est requis.",
+        message:
+          "Le nom de l'abonnement est requis et doit être une chaîne de caractères.",
       });
     }
 
@@ -172,10 +231,8 @@ router.delete("/delete_abonnement", async (req, res) => {
   }
 });
 
-// Route pour mettre à jour les informations d'un abonnement
 router.put("/update_abonnement", async (req, res) => {
   try {
-    // Extraire les informations de la requête.
     const {
       current_nom_abonnement,
       nom_abonnement,
@@ -188,15 +245,13 @@ router.put("/update_abonnement", async (req, res) => {
       id_categorie,
     } = req.body;
 
-    // Vérification que current_nom_abonnement est fourni
-    if (!current_nom_abonnement && typeof id_categorie !== "number") {
+    if (!current_nom_abonnement || typeof current_nom_abonnement !== "string") {
       return res.status(400).json({
         success: false,
         message: "Le nom actuel de l'abonnement est requis.",
       });
     }
 
-    // Vérification des champs s'ils sont fournis (l'update peut ne pas tous les avoir)
     if (nom_abonnement && typeof nom_abonnement !== "string") {
       return res.status(400).json({
         success: false,
@@ -219,10 +274,16 @@ router.put("/update_abonnement", async (req, res) => {
       });
     }
 
-    if (frequence_prelevement && typeof frequence_prelevement !== "number") {
+    const validFrequences = ["semaine", "mois", "annee"];
+    if (
+      !frequence_prelevement ||
+      typeof frequence_prelevement !== "string" ||
+      !validFrequences.includes(frequence_prelevement)
+    ) {
       return res.status(400).json({
         success: false,
-        message: "La fréquence de prélèvement doit être un nombre.",
+        message:
+          "La fréquence de prélèvement est requise, doit être une chaîne de caractères et doit être 'semaine', 'mois' ou 'annee'.",
       });
     }
 
@@ -233,10 +294,26 @@ router.put("/update_abonnement", async (req, res) => {
       });
     }
 
-    if (date_fin_engagement && isNaN(new Date(date_fin_engagement).getTime())) {
+    // Ajout de la vérification pour IsEngagement
+    if (IsEngagement) {
+      if (
+        !date_fin_engagement ||
+        isNaN(new Date(date_fin_engagement).getTime())
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "La date de fin d'engagement est requise et doit être une date valide lorsque l'engagement est activé.",
+        });
+      }
+    }
+
+    // Ajout de la condition pour vérifier que date_fin_engagement ne doit pas être fourni lorsque IsEngagement est false
+    if (!IsEngagement && date_fin_engagement) {
       return res.status(400).json({
         success: false,
-        message: "La date de fin d'engagement doit être une date valide.",
+        message:
+          "La date de fin d'engagement ne doit pas être fournie lorsque l'engagement est désactivé.",
       });
     }
 
@@ -260,8 +337,12 @@ router.put("/update_abonnement", async (req, res) => {
       nom_fournisseur,
       montant,
       frequence_prelevement,
-      date_echeance ? new Date(date_echeance) : undefined,
-      date_fin_engagement ? new Date(date_fin_engagement) : undefined,
+      date_echeance ? new Date(date_echeance) : undefined, // Transformation conditionnelle des dates
+      IsEngagement
+        ? date_fin_engagement
+          ? new Date(date_fin_engagement)
+          : null
+        : undefined, // Transformation conditionnelle des dates
       IsEngagement,
       id_categorie
     );
@@ -307,7 +388,7 @@ router.get("/get_abonnement_by_nom_abonnement", async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "Le nom de la aobonnement est requis pour retourner les valeurs de l'Abonnement.",
+          "Le nom de l'abonnement est requis pour retourner les valeurs de l'Abonnement.",
       });
     }
 
@@ -322,5 +403,43 @@ router.get("/get_abonnement_by_nom_abonnement", async (req, res) => {
     res
       .status(500)
       .send("Erreur lors de la récupération des données de l'abonnement");
+  }
+});
+
+router.get("/abonnements_with_categorie", async (req, res) => {
+  try {
+    // Appel de la méthode du contrôleur pour récupérer les abonnements avec les informations de la catégorie
+    const results = await controller.getAbonnementWithCategorie();
+
+    res.json(results);
+  } catch (error) {
+    console.error(
+      "Erreur lors de la récupération des abonnements avec catégorie:",
+      error
+    );
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des abonnements avec catégorie.",
+    });
+  }
+});
+
+router.get("/nom_abonnement_categorie", async (req, res) => {
+  try {
+    // Appel de la méthode du contrôleur pour récupérer les noms d'abonnement et de catégorie
+    const results = await controller.getNomAbonnementAndCategorie();
+    // Envoie des résultats en réponse
+    res.json(results);
+  } catch (error) {
+    // Gestion des erreurs et envoi d'une réponse d'erreur
+    console.error(
+      "Erreur lors de la récupération des noms d'abonnement et de catégorie:",
+      error
+    );
+    res.status(500).json({
+      success: false,
+      message:
+        "Erreur lors de la récupération des noms d'abonnement et de catégorie.",
+    });
   }
 });

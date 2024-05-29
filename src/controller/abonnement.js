@@ -1,6 +1,9 @@
 // src/controller/user.js
 import mysql from "mysql";
 import { Abonnement } from "../model/abonnement.js";
+import { CategorieController } from "./categorie.js"; // Assurez-vous que le chemin est correct
+
+const categoryController = new CategorieController();
 
 import {
   DATABASE_HOST,
@@ -77,6 +80,109 @@ export class AbonnementController {
       );
     }
   }
+  async getTotalAmount() {
+    try {
+      console.log("Début de la récupération du montant total.");
+
+      const query = `
+      SELECT SUM(montant) AS total_montant
+      FROM abonnement
+      `;
+
+      const results = await this.executeQuery(query);
+      console.log(
+        "Résultats de la requête SQL pour le montant total:",
+        results
+      );
+
+      const totalAmount = results[0].total_montant || 0; // Retourner le montant total ou 0 s'il n'y a pas de résultats
+
+      // Vérification que le montant total est supérieur aux montants mensuels et annuels
+      const totalMonthlyAmount = await this.getTotalMonthlyAmount();
+      const totalAnnualAmount = await this.getTotalAnnualAmount();
+
+      if (totalAmount < totalMonthlyAmount || totalAmount < totalAnnualAmount) {
+        throw new Error(
+          "Le montant total doit être supérieur ou égal aux montants mensuels et annuels."
+        );
+      }
+
+      return totalAmount;
+    } catch (error) {
+      console.error(
+        "Erreur lors de l'exécution de la requête SQL pour le montant total:",
+        error
+      );
+
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération du montant total"
+      );
+    }
+  }
+
+  async getTotalMonthlyAmount() {
+    try {
+      console.log("Début de la récupération du montant total mensuel.");
+
+      const query = `
+      SELECT SUM(montant) AS total_montant
+      FROM abonnement
+      WHERE frequence_prelevement = 'mois'
+      `;
+
+      const results = await this.executeQuery(query);
+      console.log(
+        "Résultats de la requête SQL pour le montant total mensuel:",
+        results
+      );
+
+      return results[0].total_montant; // Retourner le montant total ou 0 s'il n'y a pas de résultats
+    } catch (error) {
+      console.error(
+        "Erreur lors de l'exécution de la requête SQL pour le montant total mensuel:",
+        error
+      );
+
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération du montant total mensuel"
+      );
+    }
+  }
+
+  async getTotalAnnualAmount() {
+    try {
+      const query = `
+      SELECT SUM(montant) AS total_montant
+      FROM abonnement
+      WHERE frequence_prelevement = 'annee'
+      `;
+
+      const results = await this.executeQuery(query);
+      return results[0].total_montant;
+    } catch (error) {
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération du montant total annuel : " +
+          error.message
+      );
+    }
+  }
+
+  async getTotalWeeklyAmount() {
+    try {
+      const query = `
+        SELECT SUM(montant) AS total_montant
+        FROM abonnement
+        WHERE frequence_prelevement = 'semaine'
+      `;
+      const results = await this.executeQuery(query);
+      return results[0].total_montant || 0; // Retourner le montant total ou 0 s'il n'y a pas de résultats
+    } catch (error) {
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération du montant total hebdomadaire : " +
+          error.message
+      );
+    }
+  }
 
   async insertAbonnement(
     nom_abonnement,
@@ -89,6 +195,15 @@ export class AbonnementController {
     id_categorie
   ) {
     try {
+      // Vérifier si une catégorie avec cet ID existe déjà
+      const existingCategory = await categoryController.getCategorieById(
+        id_categorie
+      );
+
+      if (!existingCategory) {
+        throw new Error("La catégorie spécifiée n'existe pas.");
+      }
+
       // Vérifier si un abonnement avec le même nom existe déjà
       const existingAbonnement = await this.executeQuery(
         "SELECT 1 FROM abonnement WHERE nom_abonnement = ? LIMIT 1",
@@ -111,17 +226,17 @@ export class AbonnementController {
 
       // Définition de la requête SQL pour insérer un nouvel abonnement
       const query = `
-      INSERT INTO abonnement (
-        nom_abonnement,
-        nom_fournisseur,
-        montant,
-        frequence_prelevement,
-        date_echeance,
-        date_fin_engagement,
-        IsEngagement,
-        id_categorie
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO abonnement (
+          nom_abonnement,
+          nom_fournisseur,
+          montant,
+          frequence_prelevement,
+          date_echeance,
+          date_fin_engagement,
+          IsEngagement,
+          id_categorie
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       // Exécution de la requête
@@ -171,10 +286,8 @@ export class AbonnementController {
       throw new Error("Erreur lors de la suppression de l'abonnement.");
     }
   }
-
-  // Méthode asynchrone pour mettre à jour les informations d'un abonnement dans la base de données.
   async updateAbonnement(
-    current_nom_abonnement, // Utilisez 'current_nom_abonnement' pour identifier l'utilisateur actuel
+    current_nom_abonnement,
     nom_abonnement,
     nom_fournisseur,
     montant,
@@ -185,7 +298,6 @@ export class AbonnementController {
     id_categorie
   ) {
     try {
-      // Validation des entrées.
       if (
         !nom_abonnement &&
         !nom_fournisseur &&
@@ -199,24 +311,54 @@ export class AbonnementController {
         throw new Error("Au moins un des paramètres doit être fourni.");
       }
 
-      // Vérifier si le current_nom existe
+      if (current_nom_abonnement === nom_abonnement) {
+        throw new Error(
+          "Le nom actuel et le nouveau nom ne peuvent pas être identiques."
+        );
+      }
+
       const existingAbonnement = await this.executeQuery(
         "SELECT 1 FROM abonnement WHERE nom_abonnement = ?",
         [current_nom_abonnement]
       );
 
       if (existingAbonnement.length === 0) {
-        throw new Error("Aucune abonnement avec ce nom actuel n'existe pas.");
+        throw new Error("Aucun abonnement avec ce nom actuel n'existe.");
       }
 
-      // Vérifier si le nouveau nom est unique
-      const existingNewNomAbonnement = await this.executeQuery(
-        "SELECT 1 FROM abonnement WHERE nom_abonnement = ?",
-        [nom_abonnement]
-      );
+      if (nom_abonnement) {
+        const existingNewNomAbonnement = await this.executeQuery(
+          "SELECT 1 FROM abonnement WHERE nom_abonnement = ?",
+          [nom_abonnement]
+        );
 
-      if (existingNewNomAbonnement.length > 0) {
-        throw new Error("Ce nom abonnement existe deja");
+        if (existingNewNomAbonnement.length > 0) {
+          throw new Error("Ce nom d'abonnement existe déjà.");
+        }
+      }
+
+      // Validation de frequence_prelevement
+      const validFrequences = ["semaine", "mois", "annee"];
+      if (
+        frequence_prelevement &&
+        !validFrequences.includes(frequence_prelevement)
+      ) {
+        throw new Error(
+          "La fréquence de prélèvement doit être 'semaine', 'mois' ou 'annee'."
+        );
+      }
+
+      if (
+        IsEngagement &&
+        (!date_fin_engagement || isNaN(new Date(date_fin_engagement).getTime()))
+      ) {
+        throw new Error(
+          "La date de fin d'engagement est requise et doit être une date valide lorsque l'engagement est activé."
+        );
+      }
+
+      if (!IsEngagement) {
+        date_fin_engagement = null; // Ignorer la date de fin d'engagement si l'engagement est faux
       }
 
       if (date_echeance && date_fin_engagement) {
@@ -230,68 +372,89 @@ export class AbonnementController {
         }
       }
 
-      // Initialisation des champs et valeurs mise à jour
+      // Vérification des montants
+      if (frequence_prelevement === "semaine") {
+        const totalMonthlyAmount = await this.getTotalMonthlyAmount();
+        if (montant > totalMonthlyAmount / 4) {
+          throw new Error(
+            "Le montant hebdomadaire doit être inférieur au montant mensuel divisé par 4."
+          );
+        }
+      }
+
+      if (frequence_prelevement === "mois") {
+        const totalAnnualAmount = await this.getTotalAnnualAmount();
+        if (montant > totalAnnualAmount / 12) {
+          throw new Error(
+            "Le montant mensuel doit être inférieur au montant annuel divisé par 12."
+          );
+        }
+      }
+
       let updatedFields = [];
       let updatedValues = [];
 
-      // Mise à jour des champs et valeurs en fonction des paramètres fournis
-      if (nom_abonnement) {
+      if (nom_abonnement !== undefined) {
         updatedFields.push("nom_abonnement = ?");
         updatedValues.push(nom_abonnement);
       }
-
-      if (nom_fournisseur) {
+      if (nom_fournisseur !== undefined) {
         updatedFields.push("nom_fournisseur = ?");
         updatedValues.push(nom_fournisseur);
       }
-
-      // Mise à jour des champs et valeurs en fonction des paramètres fournis
-      if (montant) {
+      if (montant !== undefined) {
         updatedFields.push("montant = ?");
         updatedValues.push(montant);
       }
 
-      if (frequence_prelevement) {
+      if (
+        frequence_prelevement &&
+        validFrequences.includes(frequence_prelevement)
+      ) {
         updatedFields.push("frequence_prelevement = ?");
         updatedValues.push(frequence_prelevement);
       }
-
-      // Mise à jour des champs et valeurs en fonction des paramètres fournis
       if (date_echeance) {
         updatedFields.push("date_echeance = ?");
-        updatedValues.push(date_echeance);
+        updatedValues.push(new Date(date_echeance));
       }
-
-      if (date_fin_engagement) {
-        updatedFields.push("date_fin_engagement = ?");
-        updatedValues.push(date_fin_engagement);
-      }
-
-      // Mise à jour des champs et valeurs en fonction des paramètres fournis
       if (typeof IsEngagement === "boolean") {
         updatedFields.push("IsEngagement = ?");
         updatedValues.push(IsEngagement);
+
+        if (IsEngagement) {
+          if (
+            date_fin_engagement &&
+            !isNaN(new Date(date_fin_engagement).getTime())
+          ) {
+            updatedFields.push("date_fin_engagement = ?");
+            updatedValues.push(new Date(date_fin_engagement));
+          } else {
+            throw new Error(
+              "La date de fin d'engagement est requise et doit être une date valide lorsque l'engagement est activé."
+            );
+          }
+        } else {
+          // Si l'engagement est désactivé, on supprime la date de fin d'engagement
+          updatedFields.push("date_fin_engagement = NULL");
+        }
       }
 
-      if (id_categorie) {
+      if (id_categorie !== undefined) {
         updatedFields.push("id_categorie = ?");
         updatedValues.push(id_categorie);
       }
 
-      // Ajout de l'current_nom pour la condition WHERE
       updatedValues.push(current_nom_abonnement);
 
-      // Construction de la requête SQL
       const query = `
          UPDATE abonnement
          SET ${updatedFields.join(", ")}
          WHERE nom_abonnement = ?
        `;
 
-      // Exécution de la requête de mise à jour dans la base de données
       const result = await this.executeQuery(query, updatedValues);
 
-      // Vérification si la mise à jour a affecté des lignes
       return result.affectedRows > 0;
     } catch (error) {
       throw new Error(
@@ -321,6 +484,48 @@ export class AbonnementController {
     } catch (error) {
       throw new Error(
         "Une erreur s'est produite lors de la récupération de l'abonnement par son nom."
+      );
+    }
+  }
+
+  async getAbonnementWithCategorie() {
+    try {
+      // Requête SQL pour sélectionner les abonnements et joindre les informations de la catégorie
+      const query = `
+      SELECT a.*, c.nom AS categorie_nom
+      FROM abonnement a
+      JOIN categorie c ON a.id_categorie = c.id_Categorie
+      `;
+      // Exécution de la requête SQL
+      const results = await this.executeQuery(query);
+
+      return results;
+    } catch (error) {
+      throw new Error(
+        "Erreur lors de la récupération des abonnements avec categorie: " +
+          error.message
+      );
+    }
+  }
+
+  async getNomAbonnementAndCategorie() {
+    try {
+      // Requête SQL pour sélectionner le nom de l'abonnement et le nom de la catégorie
+      const query = `
+      SELECT a.nom_abonnement, c.nom AS categorie_nom
+      FROM abonnement a
+      JOIN categorie c ON a.id_categorie = c.id_Categorie
+    `;
+
+      const results = await this.executeQuery(query);
+
+      return results;
+    } catch (error) {
+      // Gestion des erreurs en cas de problème lors de la requête
+
+      throw new Error(
+        "Erreur lors de la récupération des noms d'abonnement et de catégorie: " +
+          error.message
       );
     }
   }

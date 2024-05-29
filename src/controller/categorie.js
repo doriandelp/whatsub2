@@ -138,6 +138,13 @@ export class CategorieController {
         );
       }
 
+      // Condition pour vérifier que current_nom et nom ne sont pas identiques
+      if (current_nom === nom) {
+        throw new Error(
+          "Le nom actuel et le nouveau nom ne peuvent pas être identiques."
+        );
+      }
+
       // Vérifier si le current_nom existe
       if (nom) {
         const existingCategorie = await this.executeQuery(
@@ -167,12 +174,12 @@ export class CategorieController {
       let updatedValues = [];
 
       // Mise à jour des champs et valeurs en fonction des paramètres fournis
-      if (nom) {
+      if (nom !== undefined) {
         updatedFields.push("nom = ?");
         updatedValues.push(nom);
       }
 
-      if (couleur) {
+      if (couleur !== undefined) {
         updatedFields.push("couleur = ?");
         updatedValues.push(couleur);
       }
@@ -206,7 +213,7 @@ export class CategorieController {
   // Méthode asynchrone pour récupérer un utilisateur en fonction du nom de la categorie
   async getCategorieByNom(nom) {
     try {
-      const query = `SELECT * FROM categorie WHERE nom = '${nom}'`;
+      const query = `SELECT * FROM categorie WHERE nom = ?`;
 
       // Exécution de la requête SQL et attente des résultats.
       let result = await this.executeQuery(query, [nom]);
@@ -214,6 +221,31 @@ export class CategorieController {
       // Vérification si la catérgoie a été trouvée
       if (result.length === 0) {
         throw new Error("Aucune catégorie avec ce nom n'a été trouvée.");
+      }
+      // Retour la catégorie trouvée
+      return result[0];
+    } catch (error) {
+      // En cas d'erreur, lance une exception pour gérer l'erreur à un niveau supérieur
+      throw new Error(
+        "Une erreur s'est produite lors de la récupération de la categorie par son nom." +
+          error.message
+      );
+    }
+  }
+
+  // Méthode asynchrone pour récupérer un utilisateur en fonction du nom de la categorie
+  async getCategorieById(id_Categorie) {
+    try {
+      const query = `SELECT * FROM categorie WHERE id_Categorie = ?`;
+
+      // Exécution de la requête SQL et attente des résultats.
+      let result = await this.executeQuery(query, [id_Categorie]);
+
+      // Vérification si la catérgoie a été trouvée
+      if (result.length === 0) {
+        throw new Error(
+          "Aucune catégorie avec ce id_Categorie n'a été trouvée."
+        );
       }
       // Retour la catégorie trouvée
       return result[0];

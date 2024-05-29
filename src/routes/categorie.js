@@ -1,5 +1,5 @@
 // Import du contrôleur qui gère la logique métier de l'application
-import { CategorieController, controller } from "../controller/categorie.js";
+import { controller } from "../controller/categorie.js";
 
 // Import des modules Express et bodyParser pour la gestion des routes et du corps des requêtes.
 import express from "express";
@@ -31,12 +31,6 @@ router.post("/create_categorie", async (req, res) => {
     // Extraction des donnés du corps de la requête.
     const { nom, couleur } = req.body;
 
-    // Vérification des types des données.
-    if (typeof nom !== "string" || typeof couleur !== "string") {
-      res.sendStatus(400); // Bad Request
-      return;
-    }
-
     // Vérification que tous les champs requis sont fournis et valides
     if (!nom || typeof nom !== "string") {
       return res.status(400).json({
@@ -55,7 +49,7 @@ router.post("/create_categorie", async (req, res) => {
     }
 
     // Appel de la méthode du contrôleur pour insérer un nouvelle categorie.
-    const result = await controller.insertCategorie(nom, couleur);
+    await controller.insertCategorie(nom, couleur);
 
     // Réponse réussie si tout se passe bien.
     res
@@ -183,7 +177,7 @@ router.put("/update_categorie", async (req, res) => {
 
 router.get("/get_categorie_by_nom", async (req, res) => {
   try {
-    const { nom } = req.body;
+    const { nom } = req.query;
 
     // Vérification des types des données.
     if (typeof nom !== "string") {

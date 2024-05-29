@@ -2,6 +2,7 @@
 import mysql from "mysql";
 import { Users } from "../model/user.js";
 import bcrypt from "bcrypt";
+import { sendVerificationEmail } from "../../nodemailer.js"; // Importer la fonction pour envoyer l'email
 
 import {
   DATABASE_HOST,
@@ -9,6 +10,9 @@ import {
   DATABASE_USER,
   DATABASE_PASSWORD,
 } from "../environment.js";
+
+// Définir une constante pour le nombre de hachages
+const HASH_SALT_ROUNDS = 10;
 
 export class UserController {
   constructor() {
@@ -38,6 +42,8 @@ export class UserController {
       this.connection.query(query, params, (error, results, fields) => {
         if (error) {
           // Si une erreur survient lors de l'exécution de la requête, la promesse est rejetée avec cette erreur.
+          console.error("Erreur lors de l'exécution de la requête SQL:", error); // Ajout de logs d'erreur
+
           reject(error);
         } else {
           // Si la requête réussit, la promesse est résolue avec les résultats.
@@ -127,15 +133,25 @@ export class UserController {
   }
 
   async insertUser(
-    nom = "",
-    prenom = "",
-    telephone = "",
-    salaire = 0,
+    nom,
+    prenom,
+    telephone,
+    salaire,
     mail,
     motdepasse,
     ismailverif
   ) {
     try {
+      console.log("Paramètres reçus:", {
+        nom,
+        prenom,
+        telephone,
+        salaire,
+        mail,
+        motdepasse,
+        ismailverif,
+      });
+
       // Vérifier si un utilisateur avec le même email existe déjà
       const existingEmail = await this.executeQuery(
         "SELECT 1 FROM utilisateur WHERE mail = ? LIMIT 1",
@@ -146,36 +162,47 @@ export class UserController {
         throw new Error("An account with this email already exists.");
       }
 
-      // Valider l'email
       await this.validateEmail(mail);
-
-      // Valider le mot de passe
       await this.validatePassword(motdepasse);
 
-      // Hashage du mot de passe avec bcrypt
-      const hashedPassword = await bcrypt.hash(motdepasse, 10);
+      // const hashedPassword = await bcrypt.hash(motdepasse, HASH_SALT_ROUNDS);
+      // console.log("Mot de passe haché:", hashedPassword);
 
       // Remplacer null par false pour ismailverif
       if (ismailverif === null) {
         throw new Error("Il est impossible que ismailverif soit null.");
       }
-
       // Définition de la requête SQL pour insérer un nouvel utilisateur
       const query = `
       INSERT INTO utilisateur (nom, prenom, telephone, salaire, mail, motdepasse, ismailverif)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
+      `;
 
-      // Exécution de la requête
+      console.log("Requête SQL:", query);
+      console.log("Valeurs:", [
+        nom,
+        prenom,
+        telephone,
+        salaire,
+        mail,
+        // hashedPassword,
+        motdepasse,
+        ismailverif ? "1" : "0",
+      ]);
+
       await this.executeQuery(query, [
         nom,
         prenom,
         telephone,
         salaire,
         mail,
-        hashedPassword,
-        ismailverif, // Convertir la valeur booléenne en 0 ou 1
+        // hashedPassword,
+        motdepasse,
+        ismailverif ? "1" : "0", // Convertir la valeur booléenne en 0 ou 1
       ]);
+
+      // Envoyer un email de vérification après l'insertion réussie
+      // await sendVerificationEmail(mail);
     } catch (error) {
       throw new Error(
         "Une erreur s'est produite lors de l'insertion d'un utilisateur."
@@ -185,11 +212,29 @@ export class UserController {
 
   async deleteUser(mail) {
     try {
-      const query = `DELETE FROM utilisateur WHERE mail = '${mail}'`;
+      // Vérifier d'abord si l'abonnement existe
+      const existingUtilisateur = await this.executeQuery(
+        "SELECT 1 FROM utilisateur WHERE mail = ?",
+        [mail]
+      );
+
+      // Si aucun enregistrement n'est retourné, on lance une erreur
+      if (existingUtilisateur.length === 0) {
+        throw new Error("Aucun Utilisateur avec ce mail n'existe.");
+      }
 
       await this.validateEmail(mail);
 
-      await this.executeQuery(query);
+      const query = "DELETE FROM utilisateur WHERE mail = ?";
+
+      const result = await this.executeQuery(query, [mail]);
+
+      // Vérification si la suppression a affecté des lignes
+      if (result.affectedRows > 0) {
+        return true; // La catégorie a été supprimée avec succès
+      } else {
+        return false; // La suppression a échoué
+      }
     } catch (error) {
       throw new Error(
         "Une erreur s'est produite lors de la suppression d'un utilisateur."
@@ -197,85 +242,142 @@ export class UserController {
     }
   }
 
-  // Méthode asynchrone pour mettre à jour les informations d'un utilisateur dans la base de données.
   async updateUser(
-    current_mail, // Utilisez 'current_mail' pour identifier l'utilisateur actuel
-    new_nom = "",
-    new_prenom = "",
-    new_telephone = "",
-    new_salaire = 0,
-    new_mail,
-    new_motdepasse,
-    new_ismailverif = 0
+    current_mail,
+    nom,
+    prenom,
+    telephone,
+    salaire,
+    mail,
+    motdepasse,
+    ismailverif
   ) {
     try {
-      if (!new_mail || !new_motdepasse) {
+      // Vérification que le mail et le mot de passe sont fournis
+      if (!mail || !motdepasse) {
         throw new Error("Email and password are required");
       }
 
-      // Validationde l'email
-      await this.validateEmail(new_mail);
+      // condition pour vérifier que current_mail et mail ne sont pas identiques
+      if (current_mail === mail) {
+        throw new Error(
+          "Le mail actuel et le nouveau mail ne peuvent pas être identiques."
+        );
+      }
+
+      // Validation de l'email
+      await this.validateEmail(mail);
 
       // Validation du mot de passe
-      await this.validatePassword(new_motdepasse);
+      await this.validatePassword(motdepasse);
 
-      const hashedPassword = await bcrypt.hash(new_motdepasse, 10);
+      const existingUtilisateur = await this.executeQuery(
+        "SELECT 1 FROM utilisateur WHERE mail = ?",
+        [current_mail]
+      );
+
+      if (existingUtilisateur.length === 0) {
+        throw new Error("Aucun utilisateur avec cet email actuel n'existe.");
+      }
+
+      const existingNewMailUtilisateur = await this.executeQuery(
+        "SELECT 1 FROM utilisateur WHERE mail = ?",
+        [mail]
+      );
+
+      if (existingNewMailUtilisateur.length > 0 && mail !== current_mail) {
+        throw new Error("Cet email existe déjà.");
+      }
+
+      let updatedFields = [];
+      let updatedValues = [];
+
+      // Mise à jour des champs et valeurs en fonction des paramètres fournis
+      if (nom !== undefined) {
+        updatedFields.push("nom = ?");
+        updatedValues.push(nom);
+      }
+      if (prenom !== undefined) {
+        updatedFields.push("prenom = ?");
+        updatedValues.push(prenom);
+      }
+      if (telephone !== undefined) {
+        updatedFields.push("telephone = ?");
+        updatedValues.push(telephone);
+      }
+      if (salaire !== undefined) {
+        updatedFields.push("salaire = ?");
+        updatedValues.push(salaire);
+      }
+      if (mail !== undefined) {
+        updatedFields.push("mail = ?");
+        updatedValues.push(mail);
+      }
+
+      if (motdepasse !== undefined) {
+        // console.log("Hachage du mot de passe");
+        // const hashedPassword = await bcrypt.hash(motdepasse, HASH_SALT_ROUNDS);
+        updatedFields.push("motdepasse = ?");
+        updatedValues.push(motdepasse);
+      }
+
+      if (ismailverif !== undefined) {
+        if (ismailverif === true) {
+          updatedFields.push("ismailverif = ?");
+          updatedValues.push(1);
+        } else {
+          throw new Error(
+            "La vérification de l'email doit être vraie pour modifier l'utilisateur."
+          );
+        }
+      }
+
+      updatedValues.push(current_mail);
 
       const query = `
-      UPDATE utilisateur 
-      SET 
-        nom = ?,
-        prenom = ?,
-        telephone = ?,
-        salaire = ?,
-        mail = ?,
-        motdepasse = ?,
-        ismailverif = ?
-      WHERE mail = ?
-    `;
+         UPDATE utilisateur
+         SET ${updatedFields.join(", ")}
+         WHERE mail = ?
+       `;
 
-      await this.executeQuery(query, [
-        new_nom, // Utiliser new_nom si fourni, sinon conserver l'ancien
-        new_prenom,
-        new_telephone,
-        new_salaire,
-        new_mail,
-        hashedPassword,
-        new_ismailverif,
-        current_mail, // Assurez-vous de mettre à jour l'utilisateur correct
-      ]);
+      const result = await this.executeQuery(query, updatedValues);
+
+      // Si l'email a été mis à jour, envoyer un email de vérification
+      // if (mail !== current_mail) {
+      //   await sendVerificationEmail(mail);
+      // }
+
+      return result.affectedRows > 0;
     } catch (error) {
+      console.error("Erreur dans updateUser:", error); // Afficher l'objet d'erreur complet
       throw new Error(
-        "Une erreur s'est produite lors de la modification d'un utilisateur."
+        "Une erreur s'est produite lors de la modification d'un utilisateur: " +
+          error.message
       );
     }
   }
-  // Méthode asynchrone pour récupérer un utilisateur en fonction du mail de ce dernier.
-  async getUserByMail(mail) {
+
+  async getUserByMailPassword(mail, motdepasse) {
     try {
-      // Construction de la requête SQL pour sélectionneur tout les champs de l'utilisateur ayant l'email spécifié.
-      const query = `SELECT *, ismailverif = 1 AS ismailverif FROM utilisateur WHERE mail = '${mail}'`;
-      // Exécution de la requête SQL et attente des résultats.
-      let results = await this.executeQuery(query);
+      const query = `SELECT nom, prenom, telephone, salaire, mail, motdepasse, ismailverif = 1 AS ismailverif FROM utilisateur WHERE mail = ? AND motdepasse = ?`;
+      let results = await this.executeQuery(query, [mail, motdepasse]);
 
-      await this.validateEmail(mail);
+      if (results.length === 0) {
+        throw new Error(
+          "Aucun utilisateur avec cet email et ce mot de passe n'a été trouvé."
+        );
+      }
 
-      // Convertir les résultats en utilisant une boucle forEach
-      results.forEach((result) => {
-        // Si la valeur de ismailverif est null, la convertir en false
-        if (result.ismailverif === null) {
-          result.ismailverif = false;
-        } else {
-          // Sinon, convertir en booléen
-          result.ismailverif = result.ismailverif === 1 ? true : false;
-        }
-      });
+      let user = results[0];
+      user.ismailverif = user.ismailverif === 1;
 
-      // Retour des résultats de la requête
-      return results;
+      console.log(user);
+      return user;
     } catch (error) {
+      console.error("Erreur dans getUserByMailPassword:", error.message);
       throw new Error(
-        "Une erreur s'est produite lors de la récupération d'un utilisateur par l'email."
+        "Une erreur s'est produite lors de la récupération d'un utilisateur par l'email et le mot de passe: " +
+          error.message
       );
     }
   }
