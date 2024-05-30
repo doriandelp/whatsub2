@@ -233,26 +233,20 @@ export class CategorieController {
     }
   }
 
-  // Méthode asynchrone pour récupérer un utilisateur en fonction du nom de la categorie
   async getCategorieById(id_Categorie) {
     try {
       const query = `SELECT * FROM categorie WHERE id_Categorie = ?`;
-
-      // Exécution de la requête SQL et attente des résultats.
       let result = await this.executeQuery(query, [id_Categorie]);
 
-      // Vérification si la catérgoie a été trouvée
       if (result.length === 0) {
         throw new Error(
           "Aucune catégorie avec ce id_Categorie n'a été trouvée."
         );
       }
-      // Retour la catégorie trouvée
       return result[0];
     } catch (error) {
-      // En cas d'erreur, lance une exception pour gérer l'erreur à un niveau supérieur
       throw new Error(
-        "Une erreur s'est produite lors de la récupération de la categorie par son nom." +
+        "Une erreur s'est produite lors de la récupération de la categorie par son id." +
           error.message
       );
     }

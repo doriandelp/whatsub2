@@ -6,6 +6,7 @@ import session from "express-session";
 import { router as userRouter } from "./routes/user.js"; // Assurez-vous que le chemin est correct
 import { router as abonnementRouter } from "./routes/abonnement.js"; // Importez le routeur d'abonnement
 import { router as categorieRouter } from "./routes/categorie.js"; // Importez le routeur d'abonnement
+import { router as ajouteRouter } from "./routes/ajoute.js"; // Importez le routeur d'abonnement
 
 import "dotenv/config"; // Cela va charger les variables d'environnement
 
@@ -26,6 +27,7 @@ app.use(bodyParser.json());
 app.use("/users", userRouter);
 app.use("/abonnement", abonnementRouter);
 app.use("/categorie", categorieRouter);
+app.use("/ajoute", ajouteRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

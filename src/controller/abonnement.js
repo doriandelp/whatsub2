@@ -192,18 +192,11 @@ export class AbonnementController {
     date_echeance,
     date_fin_engagement,
     IsEngagement,
-    id_categorie
+    id_categorie,
+    nom_categorie,
+    couleur
   ) {
     try {
-      // Vérifier si une catégorie avec cet ID existe déjà
-      const existingCategory = await categoryController.getCategorieById(
-        id_categorie
-      );
-
-      if (!existingCategory) {
-        throw new Error("La catégorie spécifiée n'existe pas.");
-      }
-
       // Vérifier si un abonnement avec le même nom existe déjà
       const existingAbonnement = await this.executeQuery(
         "SELECT 1 FROM abonnement WHERE nom_abonnement = ? LIMIT 1",
@@ -224,6 +217,26 @@ export class AbonnementController {
         );
       }
 
+      // Vérifier si la catégorie existe déjà par nom et couleur, sinon l'ajouter
+      const existingCategorieByNameAndColor = await this.executeQuery(
+        "SELECT id_categorie FROM categorie WHERE nom = ? AND couleur = ?",
+        [nom_categorie, couleur]
+      );
+
+      let categorieId;
+      if (existingCategorieByNameAndColor.length === 0) {
+        // La catégorie n'existe pas, nous devons l'insérer
+        const insertCategorieQuery =
+          "INSERT INTO categorie (nom, couleur) VALUES (?, ?)";
+        const insertCategorieResult = await this.executeQuery(
+          insertCategorieQuery,
+          [nom_categorie, couleur]
+        );
+        categorieId = insertCategorieResult.insertId;
+      } else {
+        // La catégorie existe, nous récupérons son id
+        categorieId = existingCategorieByNameAndColor[0].id_categorie;
+      }
       // Définition de la requête SQL pour insérer un nouvel abonnement
       const query = `
         INSERT INTO abonnement (
@@ -237,7 +250,8 @@ export class AbonnementController {
           id_categorie
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `;
+
+        `;
 
       // Exécution de la requête
       await this.executeQuery(query, [
@@ -286,6 +300,7 @@ export class AbonnementController {
       throw new Error("Erreur lors de la suppression de l'abonnement.");
     }
   }
+
   async updateAbonnement(
     current_nom_abonnement,
     nom_abonnement,
@@ -295,9 +310,13 @@ export class AbonnementController {
     date_echeance,
     date_fin_engagement,
     IsEngagement,
-    id_categorie
+    id_categorie,
+    nom_categorie,
+    couleur
   ) {
     try {
+      // Vérifier qu'au moins un des paramètres est fourni
+
       if (
         !nom_abonnement &&
         !nom_fournisseur &&
@@ -306,16 +325,22 @@ export class AbonnementController {
         !date_echeance &&
         !date_fin_engagement &&
         !IsEngagement &&
-        !id_categorie
+        !id_categorie &&
+        !nom_categorie &&
+        !couleur
       ) {
         throw new Error("Au moins un des paramètres doit être fourni.");
       }
+
+      // Vérifier que le nouveau nom n'est pas identique à l'ancien
 
       if (current_nom_abonnement === nom_abonnement) {
         throw new Error(
           "Le nom actuel et le nouveau nom ne peuvent pas être identiques."
         );
       }
+
+      // Vérifier si l'abonnement actuel existe
 
       const existingAbonnement = await this.executeQuery(
         "SELECT 1 FROM abonnement WHERE nom_abonnement = ?",
@@ -389,6 +414,43 @@ export class AbonnementController {
             "Le montant mensuel doit être inférieur au montant annuel divisé par 12."
           );
         }
+      }
+
+      // Vérifier si l'id_categorie existe dans la table categorie
+      if (id_categorie !== undefined) {
+        const existingCategorieById = await this.executeQuery(
+          "SELECT 1 FROM categorie WHERE id_categorie = ? LIMIT 1",
+          [id_categorie]
+        );
+
+        if (existingCategorieById.length === 0) {
+          throw new Error("La catégorie avec cet ID n'existe pas.");
+        }
+      }
+
+      // Mettre à jour le nom et la couleur de la catégorie si fournis
+      if (nom_categorie || couleur) {
+        let updateCategorieFields = [];
+        let updateCategorieValues = [];
+
+        if (nom_categorie) {
+          updateCategorieFields.push("nom = ?");
+          updateCategorieValues.push(nom_categorie);
+        }
+        if (couleur) {
+          updateCategorieFields.push("couleur = ?");
+          updateCategorieValues.push(couleur);
+        }
+
+        updateCategorieValues.push(id_categorie);
+
+        const updateCategorieQuery = `
+            UPDATE categorie
+            SET ${updateCategorieFields.join(", ")}
+            WHERE id_categorie = ?
+          `;
+
+        await this.executeQuery(updateCategorieQuery, updateCategorieValues);
       }
 
       let updatedFields = [];

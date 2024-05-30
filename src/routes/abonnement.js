@@ -82,6 +82,8 @@ router.post("/create_abonnement", async (req, res) => {
       date_fin_engagement,
       IsEngagement,
       id_categorie,
+      nom_categorie,
+      couleur,
     } = req.body;
 
     // Vérification des champs requis
@@ -166,6 +168,22 @@ router.post("/create_abonnement", async (req, res) => {
       });
     }
 
+    if (!nom_categorie || typeof nom_categorie !== "string") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Le nom de catégorie d abonnement est requis et doit être une chaine de caractere.",
+      });
+    }
+
+    if (!couleur || typeof couleur !== "string") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Le couleur de catégorie d abonnement est requis et doit être une chaine de caractere.",
+      });
+    }
+
     await controller.insertAbonnement(
       nom_abonnement,
       nom_fournisseur,
@@ -178,7 +196,9 @@ router.post("/create_abonnement", async (req, res) => {
           : null
         : undefined, // Transformation conditionnelle des dates
       IsEngagement,
-      id_categorie
+      id_categorie,
+      nom_categorie,
+      couleur
     );
 
     res
@@ -243,6 +263,8 @@ router.put("/update_abonnement", async (req, res) => {
       date_fin_engagement,
       IsEngagement,
       id_categorie,
+      nom_categorie, // Ajout du paramètre nom_categorie
+      couleur, // Ajout du paramètre couleur
     } = req.body;
 
     if (!current_nom_abonnement || typeof current_nom_abonnement !== "string") {
@@ -331,6 +353,21 @@ router.put("/update_abonnement", async (req, res) => {
       });
     }
 
+    if (nom_categorie && typeof nom_categorie !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Le nom de la catégorie doit être une chaîne de caractères.",
+      });
+    }
+
+    if (couleur && typeof couleur !== "string") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "La couleur de la catégorie doit être une chaîne de caractères.",
+      });
+    }
+
     const result = await controller.updateAbonnement(
       current_nom_abonnement,
       nom_abonnement,
@@ -344,7 +381,9 @@ router.put("/update_abonnement", async (req, res) => {
           : null
         : undefined, // Transformation conditionnelle des dates
       IsEngagement,
-      id_categorie
+      id_categorie,
+      nom_categorie, // Transmission du paramètre nom_categorie
+      couleur // Transmission du paramètre couleur
     );
     if (result) {
       res
