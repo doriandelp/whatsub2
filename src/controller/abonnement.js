@@ -550,13 +550,13 @@ export class AbonnementController {
     }
   }
 
-  async getAbonnementWithCategorie() {
+  async getAbonnementWithAllCategorie() {
     try {
       // Requête SQL pour sélectionner les abonnements et joindre les informations de la catégorie
       const query = `
-      SELECT a.*, c.nom AS categorie_nom
+      SELECT a.*, c.nom AS categorie_nom, c.couleur AS categorie_couleur
       FROM abonnement a
-      JOIN categorie c ON a.id_categorie = c.id_Categorie
+      JOIN categorie c ON a.id_categorie = c.id_categorie
       `;
       // Exécution de la requête SQL
       const results = await this.executeQuery(query);
@@ -570,21 +570,69 @@ export class AbonnementController {
     }
   }
 
-  async getNomAbonnementAndCategorie() {
+  async getAbonnementWithCategorie() {
     try {
-      // Requête SQL pour sélectionner le nom de l'abonnement et le nom de la catégorie
+      // Requête SQL pour sélectionner seulement nom_abonnement et nom de la catégorie
       const query = `
-      SELECT a.nom_abonnement, c.nom AS categorie_nom
-      FROM abonnement a
-      JOIN categorie c ON a.id_categorie = c.id_Categorie
-    `;
-
+        SELECT a.nom_abonnement, c.nom AS categorie_nom
+        FROM abonnement a
+        JOIN categorie c ON a.id_categorie = c.id_categorie
+      `;
+      // Exécution de la requête SQL
       const results = await this.executeQuery(query);
 
       return results;
     } catch (error) {
-      // Gestion des erreurs en cas de problème lors de la requête
+      throw new Error(
+        "Erreur lors de la récupération des abonnements avec catégorie: " +
+          error.message
+      );
+    }
+  }
 
+  async getAbonnementDetails(nom_abonnement) {
+    try {
+      // Requête SQL pour sélectionner les détails d'un abonnement et de sa catégorie par nom_abonnement
+      const query = `
+        SELECT a.*, c.nom AS categorie_nom, c.couleur AS categorie_couleur
+        FROM abonnement a
+        JOIN categorie c ON a.id_categorie = c.id_categorie
+        WHERE a.nom_abonnement = ?
+      `;
+      // Exécution de la requête SQL
+      const results = await this.executeQuery(query, [nom_abonnement]);
+
+      if (results.length === 0) {
+        throw new Error("Aucun abonnement trouvé avec ce nom.");
+      }
+
+      return results[0]; // Retourner le premier (et unique) résultat
+    } catch (error) {
+      throw new Error(
+        "Erreur lors de la récupération des détails de l'abonnement: " +
+          error.message
+      );
+    }
+  }
+
+  async getAbonnementNomWithCategorie(nom_abonnement) {
+    try {
+      // Requête SQL pour sélectionner seulement nom_abonnement et nom de la catégorie
+      const query = `
+        SELECT a.nom_abonnement, c.nom AS categorie_nom
+        FROM abonnement a
+        JOIN categorie c ON a.id_categorie = c.id_categorie
+        WHERE a.nom_abonnement = ?
+      `;
+      // Exécution de la requête SQL
+      const results = await this.executeQuery(query, [nom_abonnement]);
+
+      if (results.length === 0) {
+        throw new Error("Aucun abonnement trouvé avec ce nom.");
+      }
+
+      return results[0]; // Retourner le premier (et unique) résultat
+    } catch (error) {
       throw new Error(
         "Erreur lors de la récupération des noms d'abonnement et de catégorie: " +
           error.message

@@ -408,69 +408,120 @@ router.put("/update_abonnement", async (req, res) => {
   }
 });
 
-// Route pour récupérer un utilisateur en fonction du nom de l'abonnement (nom_abonnement).
-router.get("/get_abonnement_by_nom_abonnement", async (req, res) => {
+router.post("/all", async (req, res) => {
   try {
-    // Récupération du paramètre nom_abonnement de la requête.
-    const { nom_abonnement } = req.query;
+    const { nom_abonnement } = req.body;
 
-    // Vérification des types des données.
-    if (typeof nom_abonnement !== "string") {
-      return res.status(400).json({
-        success: false,
-        message: "Le nom de l abonnement est incorrect.",
-      });
-    }
-
-    // Vérification que le nom est fourni
-    if (!nom_abonnement) {
+    if (!nom_abonnement || typeof nom_abonnement !== "string") {
       return res.status(400).json({
         success: false,
         message:
-          "Le nom de l'abonnement est requis pour retourner les valeurs de l'Abonnement.",
+          "Le nom de l'abonnement est requis et doit être une chaîne de caractères.",
       });
     }
 
-    const abonnement = await controller.getAbonnementByNomAbonnement(
+    const abonnementDetails = await controller.getAbonnementByNomAbonnement(
       nom_abonnement
     );
-    res.json(abonnement);
-  } catch (error) {
-    // En cas d'erreur, loggez l'erreur et envoyez une réponse d'erreur au client.
-
-    console.error("Erreur : " + error.stack);
-    res
-      .status(500)
-      .send("Erreur lors de la récupération des données de l'abonnement");
-  }
-});
-
-router.get("/abonnements_with_categorie", async (req, res) => {
-  try {
-    // Appel de la méthode du contrôleur pour récupérer les abonnements avec les informations de la catégorie
-    const results = await controller.getAbonnementWithCategorie();
-
-    res.json(results);
+    res.status(200).json({
+      success: true,
+      data: abonnementDetails,
+    });
   } catch (error) {
     console.error(
-      "Erreur lors de la récupération des abonnements avec catégorie:",
+      "Erreur lors de la récupération des détails de l'abonnement:",
       error
     );
     res.status(500).json({
       success: false,
-      message: "Erreur lors de la récupération des abonnements avec catégorie.",
+      message: "Erreur lors de la récupération des détails de l'abonnement.",
     });
   }
 });
 
-router.get("/nom_abonnement_categorie", async (req, res) => {
+router.get("/all_abonnement_categorie", async (req, res) => {
   try {
-    // Appel de la méthode du contrôleur pour récupérer les noms d'abonnement et de catégorie
-    const results = await controller.getNomAbonnementAndCategorie();
-    // Envoie des résultats en réponse
-    res.json(results);
+    const abonnements = await controller.getAbonnementWithAllCategorie();
+    res.status(200).json({
+      success: true,
+      data: abonnements,
+    });
   } catch (error) {
-    // Gestion des erreurs et envoi d'une réponse d'erreur
+    console.error("Erreur lors de la récupération des abonnements:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des abonnements.",
+    });
+  }
+});
+
+router.get("/abonnement_nom_cate_abo", async (req, res) => {
+  try {
+    const abonnements = await controller.getAbonnementWithCategorie();
+    res.status(200).json({
+      success: true,
+      data: abonnements,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération des abonnements:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des abonnements.",
+    });
+  }
+});
+
+router.post("/details", async (req, res) => {
+  try {
+    const { nom_abonnement } = req.body;
+
+    if (!nom_abonnement || typeof nom_abonnement !== "string") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Le nom de l'abonnement est requis et doit être une chaîne de caractères.",
+      });
+    }
+
+    const abonnementDetails = await controller.getAbonnementDetails(
+      nom_abonnement
+    );
+    res.status(200).json({
+      success: true,
+      data: abonnementDetails,
+    });
+  } catch (error) {
+    console.error(
+      "Erreur lors de la récupération des détails de l'abonnement:",
+      error
+    );
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des détails de l'abonnement.",
+    });
+  }
+});
+
+router.post("/nom_categorie", async (req, res) => {
+  try {
+    const { nom_abonnement } = req.body;
+
+    if (!nom_abonnement || typeof nom_abonnement !== "string") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Le nom de l'abonnement est requis et doit être une chaîne de caractères.",
+      });
+    }
+
+    const abonnementDetails = await controller.getAbonnementNomWithCategorie(
+      nom_abonnement
+    );
+    res.status(200).json({
+      success: true,
+      data: abonnementDetails,
+    });
+  } catch (error) {
     console.error(
       "Erreur lors de la récupération des noms d'abonnement et de catégorie:",
       error
